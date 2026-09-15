@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime  @default(now())
+
+  messages     Message[]
+  memberships  ChannelMember[]
+  todosOwned   Todo[]    @relation("TodoAssignee")
+  todosCreated Todo[]    @relation("TodoCreator")
+}
+
+model Channel {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+
+  members     ChannelMember[]
+  messages    Message[]
+  todos       Todo[]
+}
+
+model ChannelMember {
+  id        String   @id @default(cuid())
+  userId    String
+  channelId String
+  joinedAt  DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  channel   Channel  @relation(fields: [channelId], references: [id])
+
+  @@unique([userId, channelId])
+}
+
+model Message {
+  id         String    @id @default(cuid())
+  content    String
+  isDecision Boolean   @default(false)
+  parentId   String?
+  createdAt  DateTime  @default(now())
+
+  channelId  String
+  channel    Channel   @relation(fields: [channelId], references: [id])
+
+  authorId   String
+  author     User      @relation(fields: [authorId], references: [id])
+
+  parent     Message?  @relation("Replies", fields: [parentId], references: [id])
+  replies    Message[] @relation("Replies")
+
+  attachments Attachment[]
+  todo        Todo?
+}
+
+model Attachment {
+  id        String   @id @default(cuid())
+  filename  String
+  url       String
+  size      Int
+  createdAt DateTime @default(now())
+
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id])
+}
+
+enum TodoStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+}
+
+model Todo {
+  id          String     @id @default(cuid())
+  title       String
+  status      TodoStatus @default(OPEN)
+  dueDate     DateTime?
+  createdAt   DateTime   @default(now())
+
+  channelId   String
+  channel     Channel    @relation(fields: [channelId], references: [id])
+
+  messageId   String?    @unique
+  message     Message?   @relation(fields: [messageId], references: [id])
+
+  assigneeId  String?
+  assignee    User?      @relation("TodoAssignee", fields: [assigneeId], references: [id])
+
+  creatorId   String
+  creator     User       @relation("TodoCreator", fields: [creatorId], references: [id])
+}
