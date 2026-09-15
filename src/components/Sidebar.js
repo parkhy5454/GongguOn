@@ -10,6 +10,7 @@ export default function Sidebar({ user }) {
   const [channels, setChannels] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [newName, setNewName] = useState('');
+  const [newPrivate, setNewPrivate] = useState(false);
   const [creating, setCreating] = useState(false);
 
   async function loadChannels() {
@@ -31,13 +32,14 @@ export default function Sidebar({ user }) {
     const res = await fetch('/api/channels', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName.trim() }),
+      body: JSON.stringify({ name: newName.trim(), isPrivate: newPrivate }),
     });
     const data = await res.json();
     setCreating(false);
     if (res.ok) {
       setShowModal(false);
       setNewName('');
+      setNewPrivate(false);
       await loadChannels();
       router.push(`/dashboard/channel/${data.channel.id}`);
     }
@@ -81,7 +83,7 @@ export default function Sidebar({ user }) {
             href={`/dashboard/channel/${ch.id}`}
             className={`nav-item ${pathname === `/dashboard/channel/${ch.id}` ? 'active' : ''}`}
           >
-            # {ch.name}
+            {ch.isPrivate ? '🔒' : '#'} {ch.name}
           </Link>
         ))}
       </div>
@@ -106,6 +108,18 @@ export default function Sidebar({ user }) {
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="예: 마케팅팀"
                 />
+              </div>
+              <div className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  id="isPrivate"
+                  checked={newPrivate}
+                  onChange={(e) => setNewPrivate(e.target.checked)}
+                  style={{ width: 'auto' }}
+                />
+                <label htmlFor="isPrivate" style={{ color: 'var(--text)', fontSize: 13, cursor: 'pointer' }}>
+                  🔒 비공개 채널로 만들기 (초대한 사람만 볼 수 있어요)
+                </label>
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                 <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowModal(false)}>

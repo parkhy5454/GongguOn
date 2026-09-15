@@ -25,6 +25,7 @@ model Channel {
   id          String    @id @default(cuid())
   name        String
   description String?
+  isPrivate   Boolean   @default(false)
   createdAt   DateTime  @default(now())
 
   members     ChannelMember[]

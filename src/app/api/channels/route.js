@@ -7,6 +7,12 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const channels = await prisma.channel.findMany({
+    where: {
+      OR: [
+        { isPrivate: false },
+        { members: { some: { userId: user.id } } },
+      ],
+    },
     orderBy: { createdAt: 'asc' },
     include: { _count: { select: { messages: true, members: true } } },
   });
@@ -17,7 +23,7 @@ export async function POST(req) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  const { name, description } = await req.json();
+  const { name, description, isPrivate } = await req.json();
   if (!name || !name.trim()) {
     return NextResponse.json({ error: '채널 이름을 입력해주세요.' }, { status: 400 });
   }
@@ -26,6 +32,7 @@ export async function POST(req) {
     data: {
       name: name.trim(),
       description: description || null,
+      isPrivate: !!isPrivate,
       members: { create: { userId: user.id } },
     },
   });

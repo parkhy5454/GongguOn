@@ -6,6 +6,22 @@ export async function GET(req, { params }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
+  const channel = await prisma.channel.findUnique({ where: { id: params.id } });
+  if (!channel) return NextResponse.json({ error: 'not found' }, { status: 404 });
+
+  const membership = await prisma.channelMember.findUnique({
+    where: { userId_channelId: { userId: user.id, channelId: params.id } },
+  });
+
+  if (channel.isPrivate && !membership) {
+    return NextResponse.json({ error: '비공개 채널입니다. 초대받은 사람만 볼 수 있어요.' }, { status: 403 });
+  }
+
+  // 공개 채널은 조회 시점에 자동으로 멤버 등록 (비공개 채널은 초대를 통해서만 등록)
+  if (!channel.isPrivate && !membership) {
+    await prisma.channelMember.create({ data: { userId: user.id, channelId: params.id } });
+  }
+
   const messages = await prisma.message.findMany({
     where: { channelId: params.id },
     orderBy: { createdAt: 'asc' },
@@ -17,19 +33,25 @@ export async function GET(req, { params }) {
     take: 200,
   });
 
-  // 채널 멤버 자동 등록 (조회 시점에 없으면 추가)
-  await prisma.channelMember.upsert({
-    where: { userId_channelId: { userId: user.id, channelId: params.id } },
-    update: {},
-    create: { userId: user.id, channelId: params.id },
-  });
-
   return NextResponse.json({ messages });
 }
 
 export async function POST(req, { params }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  const channel = await prisma.channel.findUnique({ where: { id: params.id } });
+  if (!channel) return NextResponse.json({ error: 'not found' }, { status: 404 });
+
+  const membership = await prisma.channelMember.findUnique({
+    where: { userId_channelId: { userId: user.id, channelId: params.id } },
+  });
+  if (channel.isPrivate && !membership) {
+    return NextResponse.json({ error: '비공개 채널입니다. 초대받은 사람만 쓸 수 있어요.' }, { status: 403 });
+  }
+  if (!channel.isPrivate && !membership) {
+    await prisma.channelMember.create({ data: { userId: user.id, channelId: params.id } });
+  }
 
   const body = await req.json();
   const { content, parentId, attachment } = body;

@@ -20,6 +20,10 @@ export default function ChannelPage() {
   const [text, setText] = useState('');
   const [file, setFile] = useState(null);
   const [sending, setSending] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteMsg, setInviteMsg] = useState('');
+  const [inviting, setInviting] = useState(false);
   const socketRef = useRef(null);
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -116,12 +120,37 @@ export default function ChannelPage() {
     }
   }
 
+  async function sendInvite(e) {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+    setInviting(true);
+    setInviteMsg('');
+    const res = await fetch(`/api/channels/${id}/invite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: inviteEmail.trim() }),
+    });
+    const data = await res.json();
+    setInviting(false);
+    if (res.ok) {
+      setInviteMsg(`${data.invitedName}님을 초대했어요.`);
+      setInviteEmail('');
+    } else {
+      setInviteMsg(data.error || '초대에 실패했습니다.');
+    }
+  }
+
   return (
     <>
       <div className="topbar">
         <div>
-          <h1># {channel?.name || '...'}</h1>
+          <h1>{channel?.isPrivate ? '🔒' : '#'} {channel?.name || '...'}</h1>
           {channel?.description && <p>{channel.description}</p>}
+        </div>
+        <div style={{ marginLeft: 'auto' }}>
+          <button className="btn btn-ghost" onClick={() => setShowInvite(true)}>
+            + 팀원 초대
+          </button>
         </div>
       </div>
 
@@ -205,6 +234,35 @@ export default function ChannelPage() {
           </button>
         </div>
       </form>
+
+      {showInvite && (
+        <div className="modal-backdrop" onClick={() => { setShowInvite(false); setInviteMsg(''); }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>팀원 초대</h2>
+            <form onSubmit={sendInvite}>
+              <div className="field">
+                <label>초대할 사람의 이메일 (이미 가입한 사람만 가능)</label>
+                <input
+                  autoFocus
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="teammate@company.com"
+                />
+              </div>
+              {inviteMsg && <p style={{ fontSize: 13, color: inviteMsg.includes('초대했어요') ? '#3a9a5c' : 'var(--danger)', margin: '4px 0 10px' }}>{inviteMsg}</p>}
+              <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setShowInvite(false); setInviteMsg(''); }}>
+                  닫기
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={inviting}>
+                  {inviting ? '초대 중…' : '초대하기'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }
