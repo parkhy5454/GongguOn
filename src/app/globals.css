@@ -1,19 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500&display=swap');
 
 :root {
-  --bg: #14171c;
-  --bg-elevated: #1b1f26;
-  --bg-input: #21262e;
-  --border: #2a2f38;
-  --text: #edeef0;
-  --text-dim: #9aa1ac;
-  --accent: #5b8def;
-  --accent-dim: #3a5a99;
-  --decision: #e0a94b;
-  --danger: #e0645b;
+  --bg: #f6f6f4;
+  --bg-elevated: #ffffff;
+  --bg-input: #eef0ef;
+  --border: #dfe1de;
+  --text: #1c1e1f;
+  --text-dim: #6c716f;
+  --accent: #2f5fd6;
+  --accent-dim: #dfe8fb;
+  --decision: #a8690a;
+  --danger: #c8402f;
   --radius: 10px;
   --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Malgun Gothic', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
+  --shadow-sm: 0 1px 2px rgba(20, 20, 18, 0.06);
 }
 
 * { box-sizing: border-box; }
@@ -108,7 +109,7 @@ input:focus, textarea:focus, select:focus {
 }
 
 .nav-item:hover { background: var(--bg-input); color: var(--text); }
-.nav-item.active { background: var(--accent-dim); color: #fff; }
+.nav-item.active { background: var(--accent); color: #fff; }
 
 .sidebar-footer {
   padding: 12px;
@@ -164,6 +165,7 @@ input:focus, textarea:focus, select:focus {
   width: 100%;
   max-width: 380px;
   background: var(--bg-elevated);
+  box-shadow: var(--shadow-sm);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 32px;
@@ -215,7 +217,7 @@ input:focus, textarea:focus, select:focus {
 
 .avatar {
   width: 34px; height: 34px; border-radius: 8px;
-  background: var(--accent-dim);
+  background: var(--accent);
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
 }
@@ -264,6 +266,7 @@ input:focus, textarea:focus, select:focus {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
+  box-shadow: var(--shadow-sm);
 }
 
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -292,5 +295,6 @@ input:focus, textarea:focus, select:focus {
 .modal {
   background: var(--bg-elevated); border: 1px solid var(--border);
   border-radius: 12px; padding: 22px; width: 100%; max-width: 340px;
+  box-shadow: 0 8px 24px rgba(20,20,18,0.12);
 }
 .modal h2 { font-size: 16px; margin: 0 0 14px; }
