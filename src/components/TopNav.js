@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import InviteButton from './InviteButton';
 import NotificationBell from './NotificationBell';
+import FeedbackButton from './FeedbackButton';
 
 export default function TopNav({ user }) {
   const pathname = usePathname();
@@ -28,6 +29,7 @@ export default function TopNav({ user }) {
       </nav>
       <div className="spacer" />
       <NotificationBell />
+      <FeedbackButton />
       <InviteButton referralCode={user.referralCode} />
       <div className="user-chip">
         <Link href="/profile" style={{ color: 'inherit' }}>

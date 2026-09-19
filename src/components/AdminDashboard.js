@@ -7,7 +7,10 @@ const TABS = [
   { key: 'users', label: '회원' },
   { key: 'events', label: '공구 현황' },
   { key: 'reports', label: '신고 내역' },
+  { key: 'feedback', label: '문의사항' },
 ];
+
+const CATEGORY_LABEL = { BUG: '🐛 버그 신고', SUGGESTION: '💡 기능 제안', OTHER: '💬 기타 문의' };
 
 const STATUS_LABEL = { OPEN: '진행중', CLOSED: '마감', CANCELLED: '취소됨', COMPLETED: '완료' };
 
@@ -20,18 +23,21 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState(null);
   const [events, setEvents] = useState(null);
   const [reports, setReports] = useState(null);
+  const [feedbacks, setFeedbacks] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const [uRes, eRes, rRes] = await Promise.all([
+      const [uRes, eRes, rRes, fRes] = await Promise.all([
         fetch('/api/admin/users'),
         fetch('/api/admin/events'),
         fetch('/api/admin/reports'),
+        fetch('/api/admin/feedback'),
       ]);
       if (uRes.ok) setUsers((await uRes.json()).users);
       if (eRes.ok) setEvents((await eRes.json()).events);
       if (rRes.ok) setReports((await rRes.json()).reports);
+      if (fRes.ok) setFeedbacks((await fRes.json()).feedbacks);
       setLoading(false);
     })();
   }, []);
@@ -56,6 +62,7 @@ export default function AdminDashboard() {
             {t.key === 'users' && users ? ` (${users.length})` : ''}
             {t.key === 'events' && events ? ` (${events.length})` : ''}
             {t.key === 'reports' && reports ? ` (${reports.length})` : ''}
+            {t.key === 'feedback' && feedbacks ? ` (${feedbacks.length})` : ''}
           </button>
         ))}
       </div>
@@ -146,6 +153,23 @@ export default function AdminDashboard() {
                   {' · '}{formatDT(r.createdAt)}
                 </div>
                 {r.detail && <div style={{ fontSize: 13, marginTop: 4 }}>{r.detail}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && tab === 'feedback' && (
+        <div className="card">
+          {feedbacks?.length === 0 && <div className="empty-state">접수된 문의가 없어요.</div>}
+          {feedbacks?.map((f) => (
+            <div key={f.id} className="order-row" style={{ alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700 }}>{CATEGORY_LABEL[f.category]}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
+                  {f.user.name} ({f.user.email}) · {formatDT(f.createdAt)}
+                </div>
+                <div style={{ fontSize: 13, marginTop: 4 }}>{f.content}</div>
               </div>
             </div>
           ))}
