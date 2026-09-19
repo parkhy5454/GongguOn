@@ -4,9 +4,12 @@ import { hashPassword, signToken, COOKIE_NAME } from '@/lib/auth';
 import { generateUniqueReferralCode } from '@/lib/referral';
 
 export async function POST(req) {
-  const { email, password, name, ref } = await req.json();
+  const { email, password, name, phone, ref } = await req.json();
   if (!email || !password || !name) {
     return NextResponse.json({ error: '이름, 이메일, 비밀번호를 모두 입력해주세요.' }, { status: 400 });
+  }
+  if (!phone || !phone.trim()) {
+    return NextResponse.json({ error: '휴대폰 번호를 입력해주세요.' }, { status: 400 });
   }
   if (password.length < 6) {
     return NextResponse.json({ error: '비밀번호는 6자 이상이어야 합니다.' }, { status: 400 });
@@ -28,6 +31,7 @@ export async function POST(req) {
     data: {
       email,
       name,
+      phone: phone || null,
       passwordHash,
       referralCode,
       referredById: referrer ? referrer.id : null,

@@ -69,6 +69,7 @@ export default function AdminDashboard() {
               <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', color: 'var(--text-dim)' }}>
                 <th style={{ padding: '6px 8px' }}>이름</th>
                 <th style={{ padding: '6px 8px' }}>이메일</th>
+                <th style={{ padding: '6px 8px' }}>휴대폰</th>
                 <th style={{ padding: '6px 8px' }}>가입일</th>
                 <th style={{ padding: '6px 8px' }}>추천코드</th>
                 <th style={{ padding: '6px 8px' }}>포인트</th>
@@ -83,6 +84,7 @@ export default function AdminDashboard() {
                     <Link href={`/sellers/${u.id}`} style={{ color: 'var(--accent)' }}>{u.name}</Link>
                   </td>
                   <td style={{ padding: '6px 8px' }}>{u.email}</td>
+                  <td style={{ padding: '6px 8px' }}>{u.phone || '-'}</td>
                   <td style={{ padding: '6px 8px' }}>{formatDT(u.createdAt)}</td>
                   <td style={{ padding: '6px 8px' }}>{u.referralCode}</td>
                   <td style={{ padding: '6px 8px' }}>{u.pointBalance.toLocaleString()}P</td>

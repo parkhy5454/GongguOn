@@ -10,6 +10,7 @@ function RegisterForm() {
   const ref = searchParams.get('ref');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,7 +22,7 @@ function RegisterForm() {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password, ref }),
+      body: JSON.stringify({ name, email, phone, password, ref }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -46,6 +47,18 @@ function RegisterForm() {
           <div className="field">
             <label>이메일</label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@email.com" />
+          </div>
+          <div className="field">
+            <label>휴대폰 번호</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+              placeholder="010-1234-5678"
+              pattern="^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$"
+              title="예: 010-1234-5678"
+            />
           </div>
           <div className="field">
             <label>비밀번호</label>
