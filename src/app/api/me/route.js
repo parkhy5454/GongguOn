@@ -17,6 +17,8 @@ export async function GET() {
       id: user.id, name: user.name, email: user.email,
       rating: agg._avg.rating || null,
       reviewCount: agg._count.rating,
+      referralCode: user.referralCode,
+      pointBalance: user.pointBalance,
     },
   });
 }

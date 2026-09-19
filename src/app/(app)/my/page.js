@@ -37,6 +37,16 @@ export default function MyPage() {
         </div>
       </div>
 
+      <div className="card" style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-dim)' }}>내 포인트</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--accent)' }}>{(me?.pointBalance || 0).toLocaleString()}P</div>
+        </div>
+        <div style={{ fontSize: 12.5, color: 'var(--text-dim)' }}>
+          친구가 내 초대 링크로 가입 후 첫 구매/첫 공구를 열면 포인트가 쌓여요. 상단 "🎁 친구 초대" 버튼을 눌러보세요.
+        </div>
+      </div>
+
       <h3 style={{ fontSize: 15 }}>내가 개설한 공구</h3>
       {hosted.length === 0 && <div className="empty-state">아직 개설한 공구가 없어요.</div>}
       <div className="grid-cards" style={{ marginBottom: 28 }}>

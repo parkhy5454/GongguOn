@@ -15,6 +15,15 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
 
+  referralCode String   @unique
+  referredById String?
+  referredBy   User?    @relation("Referral", fields: [referredById], references: [id])
+  referrals    User[]   @relation("Referral")
+
+  pointBalance Int      @default(0)
+  firstPurchaseRewardGiven Boolean @default(false)
+  firstEventRewardGiven    Boolean @default(false)
+
   hostedEvents Event[]   @relation("Host")
   orders       Order[]
   messages     EventMessage[]
@@ -83,6 +92,7 @@ model Order {
   buyer          User          @relation(fields: [buyerId], references: [id])
   quantity       Int
   amount         Int
+  pointsUsed     Int           @default(0)
   depositorName  String?
   paymentStatus  PaymentStatus @default(PENDING)
   createdAt      DateTime      @default(now())

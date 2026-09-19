@@ -18,7 +18,7 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: '본인이 개설한 공구에는 참여할 수 없어요.' }, { status: 400 });
   }
 
-  const { optionId, quantity } = await req.json();
+  const { optionId, quantity, usePoints } = await req.json();
   const qty = Number(quantity);
   if (!optionId || !qty || qty < 1) {
     return NextResponse.json({ error: '옵션과 수량을 확인해주세요.' }, { status: 400 });
@@ -36,10 +36,24 @@ export async function POST(req, { params }) {
         throw new Error(`재고가 부족해요 (남은 수량: ${remaining}개).`);
       }
 
+      const buyer = await tx.user.findUnique({ where: { id: user.id } });
+      const rawAmount = option.price * qty;
+      let pointsToUse = 0;
+      if (usePoints) {
+        pointsToUse = Math.min(buyer.pointBalance, rawAmount);
+      }
+
       await tx.eventOption.update({
         where: { id: optionId },
         data: { soldCount: { increment: qty } },
       });
+
+      if (pointsToUse > 0) {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { pointBalance: { decrement: pointsToUse } },
+        });
+      }
 
       return tx.order.create({
         data: {
@@ -47,7 +61,8 @@ export async function POST(req, { params }) {
           optionId,
           buyerId: user.id,
           quantity: qty,
-          amount: option.price * qty,
+          amount: rawAmount - pointsToUse,
+          pointsUsed: pointsToUse,
         },
         include: { option: true },
       });

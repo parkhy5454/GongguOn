@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
+import { EVENT_REFERRER_BONUS, EVENT_REFEREE_BONUS } from '@/lib/referral';
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -72,6 +73,24 @@ export async function POST(req) {
     },
     include: { options: true },
   });
+
+  // 추천 리워드: 추천받은 사람의 "첫 공구 개설"이면 추천인+피추천인 모두에게 포인트 지급
+  const fresh = await prisma.user.findUnique({ where: { id: user.id } });
+  if (fresh?.referredById && !fresh.firstEventRewardGiven) {
+    const eventCount = await prisma.event.count({ where: { hostId: user.id } });
+    if (eventCount === 1) {
+      await prisma.$transaction([
+        prisma.user.update({
+          where: { id: fresh.referredById },
+          data: { pointBalance: { increment: EVENT_REFERRER_BONUS } },
+        }),
+        prisma.user.update({
+          where: { id: user.id },
+          data: { pointBalance: { increment: EVENT_REFEREE_BONUS }, firstEventRewardGiven: true },
+        }),
+      ]);
+    }
+  }
 
   return NextResponse.json({ event });
 }

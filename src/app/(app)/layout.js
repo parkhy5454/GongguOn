@@ -14,7 +14,7 @@ export default async function AppLayout({ children }) {
 
   return (
     <>
-      <TopNav user={{ id: user.id, name: user.name, email: user.email, rating: agg._avg.rating }} />
+      <TopNav user={{ id: user.id, name: user.name, email: user.email, rating: agg._avg.rating, referralCode: user.referralCode, pointBalance: user.pointBalance }} />
       <div className="page">{children}</div>
     </>
   );

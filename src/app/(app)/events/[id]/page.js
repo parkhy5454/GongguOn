@@ -22,6 +22,8 @@ export default function EventDetailPage() {
   const [selectedOption, setSelectedOption] = useState(null);
   const [qty, setQty] = useState(1);
   const [joining, setJoining] = useState(false);
+  const [useMyPoints, setUseMyPoints] = useState(false);
+  const [myPointBalance, setMyPointBalance] = useState(0);
 
   const [depositorName, setDepositorName] = useState('');
   const [paying, setPaying] = useState(false);
@@ -48,6 +50,11 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     loadEvent();
+
+    (async () => {
+      const meRes = await fetch('/api/me');
+      if (meRes.ok) setMyPointBalance((await meRes.json()).user.pointBalance || 0);
+    })();
 
     (async () => {
       const res = await fetch(`/api/events/${id}/messages`);
@@ -81,7 +88,7 @@ export default function EventDetailPage() {
     const res = await fetch(`/api/events/${id}/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ optionId: selectedOption, quantity: qty }),
+      body: JSON.stringify({ optionId: selectedOption, quantity: qty, usePoints: useMyPoints }),
     });
     const d = await res.json();
     setJoining(false);
@@ -89,6 +96,7 @@ export default function EventDetailPage() {
       setError(d.error || '참여에 실패했습니다.');
       return;
     }
+    setUseMyPoints(false);
     await loadEvent();
   }
 
@@ -233,8 +241,22 @@ export default function EventDetailPage() {
                       <span>{qty}</span>
                       <button type="button" onClick={() => setQty((q) => Math.min(remaining, q + 1))}>+</button>
                       <span style={{ marginLeft: 10, fontSize: 13, color: 'var(--text-dim)' }}>
-                        합계 {(option.price * qty).toLocaleString()}원
+                        상품 금액 {(option.price * qty).toLocaleString()}원
                       </span>
+                    </div>
+                    {myPointBalance > 0 && (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 10 }}>
+                        <input
+                          type="checkbox"
+                          checked={useMyPoints}
+                          onChange={(e) => setUseMyPoints(e.target.checked)}
+                          style={{ width: 'auto' }}
+                        />
+                        보유 포인트 {myPointBalance.toLocaleString()}P 사용하기
+                      </label>
+                    )}
+                    <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 10 }}>
+                      최종 결제 금액: {Math.max(0, option.price * qty - (useMyPoints ? Math.min(myPointBalance, option.price * qty) : 0)).toLocaleString()}원
                     </div>
                     {error && <p className="error-text">{error}</p>}
                     <button className="btn btn-primary btn-block" type="submit" disabled={joining || remaining < 1}>
@@ -249,7 +271,10 @@ export default function EventDetailPage() {
                       <span>내 주문: {myOrder.option.name} × {myOrder.quantity}개</span>
                       <span className={`status-pill status-${myOrder.paymentStatus}`}>{PAY_LABEL[myOrder.paymentStatus]}</span>
                     </div>
-                    <div style={{ fontSize: 13, marginBottom: 8 }}>결제 금액: {myOrder.amount.toLocaleString()}원</div>
+                    <div style={{ fontSize: 13, marginBottom: 8 }}>
+                      결제 금액: {myOrder.amount.toLocaleString()}원
+                      {myOrder.pointsUsed > 0 && ` (포인트 ${myOrder.pointsUsed.toLocaleString()}P 사용)`}
+                    </div>
                     {myOrder.paymentStatus === 'PENDING' && (
                       <form onSubmit={markPaid} style={{ display: 'flex', gap: 6 }}>
                         <input
