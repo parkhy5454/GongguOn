@@ -13,6 +13,7 @@ model User {
   email        String   @unique
   name         String
   phone        String?
+  defaultAddress String?
   passwordHash String
   createdAt    DateTime @default(now())
 
@@ -132,6 +133,7 @@ model Order {
   amount         Int
   discountPercent Int          @default(0)
   pointsUsed     Int           @default(0)
+  shippingAddress String?
   depositorName  String?
   paymentStatus  PaymentStatus @default(PENDING)
   createdAt      DateTime      @default(now())

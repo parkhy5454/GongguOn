@@ -25,6 +25,7 @@ export default function EventDetailPage() {
   const [joining, setJoining] = useState(false);
   const [useMyPoints, setUseMyPoints] = useState(false);
   const [myPointBalance, setMyPointBalance] = useState(0);
+  const [shippingAddress, setShippingAddress] = useState('');
 
   const [depositorName, setDepositorName] = useState('');
   const [paying, setPaying] = useState(false);
@@ -63,7 +64,11 @@ export default function EventDetailPage() {
 
     (async () => {
       const meRes = await fetch('/api/me');
-      if (meRes.ok) setMyPointBalance((await meRes.json()).user.pointBalance || 0);
+      if (meRes.ok) {
+        const me = (await meRes.json()).user;
+        setMyPointBalance(me.pointBalance || 0);
+        if (me.defaultAddress) setShippingAddress(me.defaultAddress);
+      }
     })();
 
     (async () => {
@@ -98,7 +103,7 @@ export default function EventDetailPage() {
     const res = await fetch(`/api/events/${id}/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ optionId: selectedOption, quantity: qty, usePoints: useMyPoints }),
+      body: JSON.stringify({ optionId: selectedOption, quantity: qty, usePoints: useMyPoints, shippingAddress }),
     });
     const d = await res.json();
     setJoining(false);
@@ -315,6 +320,16 @@ export default function EventDetailPage() {
                         {myJoinDiscount > 0 && ` (${myJoinDiscount}% 할인 적용)`}
                       </span>
                     </div>
+                    <div className="field" style={{ marginBottom: 10 }}>
+                      <label>배송지 주소</label>
+                      <textarea
+                        value={shippingAddress}
+                        onChange={(e) => setShippingAddress(e.target.value)}
+                        rows={2}
+                        required
+                        placeholder="예: 서울시 강남구 테헤란로 123, 101동 1001호"
+                      />
+                    </div>
                     {myPointBalance > 0 && (
                       <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 10 }}>
                         <input
@@ -346,6 +361,11 @@ export default function EventDetailPage() {
                       결제 금액: {myOrder.amount.toLocaleString()}원
                       {myOrder.pointsUsed > 0 && ` (포인트 ${myOrder.pointsUsed.toLocaleString()}P 사용)`}
                     </div>
+                    {myOrder.shippingAddress && (
+                      <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 8 }}>
+                        📦 배송지: {myOrder.shippingAddress}
+                      </div>
+                    )}
                     {myOrder.paymentStatus === 'PENDING' && (
                       <form onSubmit={markPaid} style={{ display: 'flex', gap: 6 }}>
                         <input
@@ -425,8 +445,13 @@ export default function EventDetailPage() {
 
               {(!orders || orders.length === 0) && <div className="empty-state">아직 참여자가 없어요.</div>}
               {orders?.map((o) => (
-                <div key={o.id} className="order-row">
-                  <span style={{ flex: 1 }}>{o.buyer.name} · {o.option.name} × {o.quantity}개 · {o.amount.toLocaleString()}원</span>
+                <div key={o.id} className="order-row" style={{ flexWrap: 'wrap' }}>
+                  <span style={{ flex: 1, minWidth: 200 }}>
+                    {o.buyer.name} · {o.option.name} × {o.quantity}개 · {o.amount.toLocaleString()}원
+                    {o.shippingAddress && (
+                      <div style={{ fontSize: 11.5, color: 'var(--text-dim)', marginTop: 2 }}>📦 {o.shippingAddress}</div>
+                    )}
+                  </span>
                   <span className={`status-pill status-${o.paymentStatus}`}>{PAY_LABEL[o.paymentStatus]}</span>
                   {o.paymentStatus === 'PAID' && (
                     <button className="btn btn-primary btn-sm" onClick={() => confirmOrder(o.id)}>입금 확인</button>

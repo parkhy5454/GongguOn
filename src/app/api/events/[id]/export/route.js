@@ -19,14 +19,16 @@ export async function GET(req, { params }) {
 
   const orders = await prisma.order.findMany({
     where: { eventId: params.id },
-    include: { buyer: { select: { name: true, email: true } }, option: true },
+    include: { buyer: { select: { name: true, email: true, phone: true } }, option: true },
     orderBy: { createdAt: 'asc' },
   });
 
-  const header = ['이름', '이메일', '옵션', '수량', '단가할인율(%)', '결제금액', '포인트사용', '입금자명', '결제상태', '참여일시'];
+  const header = ['이름', '이메일', '휴대폰', '배송지', '옵션', '수량', '단가할인율(%)', '결제금액', '포인트사용', '입금자명', '결제상태', '참여일시'];
   const rows = orders.map((o) => [
     o.buyer.name,
     o.buyer.email,
+    o.buyer.phone || '',
+    o.shippingAddress || '',
     o.option.name,
     o.quantity,
     o.discountPercent,

@@ -6,6 +6,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [defaultAddress, setDefaultAddress] = useState('');
   const [email, setEmail] = useState('');
   const [savingInfo, setSavingInfo] = useState(false);
   const [infoMsg, setInfoMsg] = useState('');
@@ -23,6 +24,7 @@ export default function ProfilePage() {
         const { user } = await res.json();
         setName(user.name || '');
         setPhone(user.phone || '');
+        setDefaultAddress(user.defaultAddress || '');
         setEmail(user.email || '');
       }
       setLoading(false);
@@ -36,7 +38,7 @@ export default function ProfilePage() {
     const res = await fetch('/api/me', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phone }),
+      body: JSON.stringify({ name, phone, defaultAddress }),
     });
     const d = await res.json();
     setSavingInfo(false);
@@ -97,6 +99,15 @@ export default function ProfilePage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="010-1234-5678"
+            />
+          </div>
+          <div className="field">
+            <label>기본 배송지 (선택 — 저장해두면 공구 참여 시 자동으로 채워져요)</label>
+            <textarea
+              value={defaultAddress}
+              onChange={(e) => setDefaultAddress(e.target.value)}
+              rows={2}
+              placeholder="예: 서울시 강남구 테헤란로 123, 101동 1001호"
             />
           </div>
           {infoMsg && (

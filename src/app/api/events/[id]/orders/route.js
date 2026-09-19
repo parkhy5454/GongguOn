@@ -20,10 +20,13 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: '본인이 개설한 공구에는 참여할 수 없어요.' }, { status: 400 });
   }
 
-  const { optionId, quantity, usePoints } = await req.json();
+  const { optionId, quantity, usePoints, shippingAddress } = await req.json();
   const qty = Number(quantity);
   if (!optionId || !qty || qty < 1) {
     return NextResponse.json({ error: '옵션과 수량을 확인해주세요.' }, { status: 400 });
+  }
+  if (!shippingAddress || !shippingAddress.trim()) {
+    return NextResponse.json({ error: '배송지 주소를 입력해주세요.' }, { status: 400 });
   }
 
   let order;
@@ -73,6 +76,7 @@ export async function POST(req, { params }) {
           amount: rawAmount - pointsToUse,
           discountPercent,
           pointsUsed: pointsToUse,
+          shippingAddress: shippingAddress.trim(),
         },
         include: { option: true },
       });
