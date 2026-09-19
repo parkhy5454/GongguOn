@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const TABS = [
-  { href: '/events', icon: '🏠', label: '둘러보기' },
-  { href: '/events/new', icon: '➕', label: '공구열기' },
+  { href: '/events', icon: '🏠', label: '공동구매' },
+  { href: '/events/new', icon: '➕', label: '공구등록' },
   { href: '/my', icon: '📋', label: '내활동' },
   { href: '/profile', icon: '👤', label: '내정보' },
 ];

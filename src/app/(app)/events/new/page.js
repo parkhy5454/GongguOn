@@ -139,7 +139,7 @@ export default function NewEventPage() {
     <>
       <div className="page-header">
         <div>
-          <h1>공구 열기</h1>
+          <h1>공구 등록</h1>
           <p>제목, 옵션별 가격/수량, 마감일을 입력하면 바로 개설돼요</p>
         </div>
       </div>

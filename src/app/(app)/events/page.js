@@ -43,10 +43,9 @@ export default function EventsPage() {
     <>
       <div className="page-header">
         <div>
-          <h1>공구 둘러보기</h1>
-          <p>지금 열려있는 공동구매를 확인하고 참여해보세요</p>
+          <h1>공동구매</h1>
         </div>
-        <Link href="/events/new" className="btn btn-primary">+ 공구 열기</Link>
+        <Link href="/events/new" className="btn btn-primary">+ 공구 등록</Link>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>

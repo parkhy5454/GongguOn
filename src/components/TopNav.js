@@ -20,8 +20,8 @@ export default function TopNav({ user }) {
     <div className="topnav">
       <Link href="/events" className="brand">공구온</Link>
       <nav>
-        <Link href="/events" className={pathname === '/events' ? 'active' : ''}>공구 둘러보기</Link>
-        <Link href="/events/new" className={pathname === '/events/new' ? 'active' : ''}>공구 열기</Link>
+        <Link href="/events" className={pathname === '/events' ? 'active' : ''}>공동구매</Link>
+        <Link href="/events/new" className={pathname === '/events/new' ? 'active' : ''}>공구 등록</Link>
         <Link href="/my" className={pathname === '/my' ? 'active' : ''}>내 활동</Link>
         {user.isAdmin && (
           <Link href="/admin" className={pathname === '/admin' ? 'active' : ''}>🛠 관리자</Link>
