@@ -37,7 +37,7 @@ export async function POST(req) {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const body = await req.json();
-  const { title, description, deadline, minQuantity, options } = body;
+  const { title, description, deadline, minQuantity, options, images } = body;
 
   if (!title || !title.trim()) {
     return NextResponse.json({ error: '제목을 입력해주세요.' }, { status: 400 });
@@ -58,6 +58,7 @@ export async function POST(req) {
     data: {
       title: title.trim(),
       description: description || null,
+      images: Array.isArray(images) ? images.filter(Boolean) : [],
       deadline: new Date(deadline),
       minQuantity: Number(minQuantity) || 1,
       hostId: user.id,

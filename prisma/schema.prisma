@@ -39,7 +39,7 @@ model Event {
   id          String   @id @default(cuid())
   title       String
   description String?
-  imageUrl    String?
+  images      String[] @default([])
   minQuantity Int      @default(1)
   deadline    DateTime
   status      EventStatus    @default(OPEN)

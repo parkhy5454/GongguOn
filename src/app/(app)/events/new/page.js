@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 function defaultDeadline() {
@@ -18,8 +18,41 @@ export default function NewEventPage() {
   const [deadline, setDeadline] = useState(defaultDeadline());
   const [minQuantity, setMinQuantity] = useState(10);
   const [options, setOptions] = useState([{ name: '기본', price: '', stock: '' }]);
+  const [images, setImages] = useState([]); // { url, uploading }
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  async function handleFiles(e) {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const placeholders = files.map((f) => ({ id: `${Date.now()}-${Math.random()}`, url: null, preview: URL.createObjectURL(f), uploading: true, error: false }));
+    setImages((prev) => [...prev, ...placeholders]);
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const placeholderId = placeholders[i].id;
+      const fd = new FormData();
+      fd.append('file', file);
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (res.ok) {
+          setImages((prev) => prev.map((img) => (img.id === placeholderId ? { ...img, url: data.url, uploading: false } : img)));
+        } else {
+          setImages((prev) => prev.map((img) => (img.id === placeholderId ? { ...img, uploading: false, error: true } : img)));
+        }
+      } catch {
+        setImages((prev) => prev.map((img) => (img.id === placeholderId ? { ...img, uploading: false, error: true } : img)));
+      }
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  function removeImage(id) {
+    setImages((prev) => prev.filter((img) => img.id !== id));
+  }
 
   function updateOption(idx, field, value) {
     setOptions((prev) => prev.map((o, i) => (i === idx ? { ...o, [field]: value } : o)));
@@ -34,13 +67,19 @@ export default function NewEventPage() {
   async function onSubmit(e) {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
+    if (images.some((img) => img.uploading)) {
+      setError('사진 업로드가 끝날 때까지 잠시만 기다려주세요.');
+      return;
+    }
+
+    setLoading(true);
     const res = await fetch('/api/events', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         title, description, deadline, minQuantity,
+        images: images.filter((img) => img.url).map((img) => img.url),
         options: options.map((o) => ({ name: o.name, price: o.price, stock: o.stock })),
       }),
     });
@@ -68,6 +107,62 @@ export default function NewEventPage() {
             <label>제목</label>
             <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="예: 제주 감귤 5kg 공동구매" />
           </div>
+
+          <div className="field">
+            <label>상품 사진 (선택, 최대 6장)</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+              {images.map((img) => (
+                <div key={img.id} style={{ position: 'relative', width: 84, height: 84 }}>
+                  <img
+                    src={img.url || img.preview}
+                    alt=""
+                    style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)', opacity: img.uploading ? 0.5 : 1 }}
+                  />
+                  {img.uploading && (
+                    <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'var(--text-dim)' }}>
+                      업로드중…
+                    </span>
+                  )}
+                  {img.error && (
+                    <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, color: 'var(--danger)', background: 'rgba(255,255,255,0.85)', borderRadius: 8 }}>
+                      실패
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeImage(img.id)}
+                    style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--danger)', color: '#fff', border: 'none', fontSize: 11, lineHeight: 1 }}
+                  >✕</button>
+                </div>
+              ))}
+              {images.length < 6 && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    width: 84, height: 84, borderRadius: 8, border: '1px dashed var(--border)',
+                    background: 'var(--bg-input)', color: 'var(--text-dim)', fontSize: 24, display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  📷
+                </button>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              multiple
+              style={{ display: 'none' }}
+              onChange={handleFiles}
+            />
+            <p style={{ fontSize: 11.5, color: 'var(--text-dim)', margin: 0 }}>
+              📷 버튼을 누르면 휴대폰에서 바로 사진을 찍거나 앨범에서 여러 장 선택할 수 있어요.
+            </p>
+          </div>
+
           <div className="field">
             <label>설명 (선택)</label>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="상품 설명, 배송 안내 등" />

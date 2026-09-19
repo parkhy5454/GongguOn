@@ -52,6 +52,13 @@ export default function EventsPage() {
           const pct = totalStock ? Math.min(100, Math.round((totalSold / totalStock) * 100)) : 0;
           return (
             <Link key={ev.id} href={`/events/${ev.id}`} className="card event-card">
+              {ev.images?.[0] && (
+                <img
+                  src={ev.images[0]}
+                  alt=""
+                  style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 8, marginBottom: 4 }}
+                />
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <h3>{ev.title}</h3>
                 <span className={`badge ${STATUS_CLASS[ev.status]}`}>{STATUS_LABEL[ev.status]}</span>

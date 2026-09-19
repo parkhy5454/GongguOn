@@ -188,6 +188,18 @@ export default function EventDetailPage() {
       <div className="detail-grid">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="card">
+            {event.images?.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 12, paddingBottom: 2 }}>
+                {event.images.map((url, i) => (
+                  <img
+                    key={i}
+                    src={url}
+                    alt=""
+                    style={{ height: 180, borderRadius: 10, border: '1px solid var(--border)', flexShrink: 0 }}
+                  />
+                ))}
+              </div>
+            )}
             {event.description && <p style={{ fontSize: 13.5, color: 'var(--text-dim)', marginTop: 0 }}>{event.description}</p>}
             <p style={{ fontSize: 12.5, color: 'var(--text-dim)' }}>최소 성사 수량: {event.minQuantity}개</p>
 
