@@ -33,7 +33,7 @@ export default function FeedbackButton() {
   return (
     <>
       <button className="btn btn-ghost btn-sm" onClick={() => setShowModal(true)} title="문의하기">
-        💬 문의하기
+        💬 <span className="btn-label">문의하기</span>
       </button>
 
       {showModal && (

@@ -32,12 +32,18 @@ export default function TopNav({ user }) {
       <FeedbackButton />
       <InviteButton referralCode={user.referralCode} />
       <div className="user-chip">
-        <Link href="/profile" style={{ color: 'inherit' }}>
-          {user.name}
-          {user.rating ? ` · ⭐ ${user.rating.toFixed(1)}` : ''}
-          {typeof user.pointBalance === 'number' ? ` · 💰 ${user.pointBalance.toLocaleString()}P` : ''}
+        <Link href="/profile" style={{ color: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span className="user-chip-icon">👤</span>
+          <span className="user-chip-text">
+            {user.name}
+            {user.rating ? ` · ⭐ ${user.rating.toFixed(1)}` : ''}
+            {typeof user.pointBalance === 'number' ? ` · 💰 ${user.pointBalance.toLocaleString()}P` : ''}
+          </span>
         </Link>
-        <button className="btn btn-ghost btn-sm" onClick={logout}>로그아웃</button>
+        <button className="btn btn-ghost btn-sm" onClick={logout}>
+          <span className="logout-text">로그아웃</span>
+          <span className="logout-icon">🚪</span>
+        </button>
       </div>
     </div>
   );

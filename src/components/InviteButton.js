@@ -33,7 +33,7 @@ export default function InviteButton({ referralCode }) {
   return (
     <>
       <button className="btn btn-primary btn-sm" onClick={handleInvite} title="친구 초대">
-        🎁 친구 초대
+        🎁 <span className="btn-label">친구 초대</span>
       </button>
 
       {showModal && (

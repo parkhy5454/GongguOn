@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/authServer';
 import { prisma } from '@/lib/prisma';
 import { isAdminEmail } from '@/lib/admin';
 import TopNav from '@/components/TopNav';
+import BottomTabBar from '@/components/BottomTabBar';
 
 export default async function AppLayout({ children }) {
   const user = await getCurrentUser();
@@ -27,6 +28,7 @@ export default async function AppLayout({ children }) {
         </div>
       )}
       <div className="page">{children}</div>
+      <BottomTabBar />
     </>
   );
 }

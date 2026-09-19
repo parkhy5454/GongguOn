@@ -130,8 +130,78 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 .review-row { border-bottom: 1px solid var(--border); padding: 10px 0; font-size: 13px; }
 .review-row:last-child { border-bottom: none; }
 
+.bottom-tabbar {
+  display: none;
+}
+.user-chip-icon, .logout-icon { display: none; }
+
 @media (max-width: 640px) {
-  .topnav { padding: 10px 14px; flex-wrap: wrap; }
-  .page { padding: 16px 14px 50px; }
+  html, body { overflow-x: hidden; }
+  input, textarea, select { font-size: 16px; } /* iOS 자동 확대 방지 */
+
+  .topnav { padding: 10px 12px; gap: 8px; }
+  .topnav .brand { font-size: 16px; }
+  .topnav nav { display: none; } /* 하단 탭바로 대체 */
+  .topnav .user-chip .user-chip-text { display: none; }
+  .topnav .user-chip .user-chip-icon { display: inline; }
+  .topnav .user-chip { gap: 4px; }
+  .logout-text { display: none; }
+  .logout-icon { display: inline; }
+  .topnav .btn-label { display: none; }
+
+  .page { padding: 14px 12px 84px; } /* 하단 탭바에 안 가리도록 여백 확보 */
   .auth-card { padding: 22px; }
+
+  .page-header { flex-direction: column; align-items: stretch; gap: 10px; }
+  .page-header h1 { font-size: 19px; }
+
+  .grid-cards { grid-template-columns: 1fr; gap: 12px; }
+  .grid-3 { grid-template-columns: 1fr; }
+
+  .detail-grid { gap: 14px; }
+  .chat-panel { height: 320px; }
+
+  .option-row { flex-wrap: wrap; gap: 8px; }
+  .qty-control { flex-wrap: wrap; }
+
+  .modal { padding: 18px; max-height: 85vh; overflow-y: auto; }
+  .modal-backdrop { align-items: flex-end; padding: 0; }
+  .modal { max-width: 100%; border-radius: 16px 16px 0 0; width: 100%; }
+
+  .card { padding: 14px; }
+
+  .btn { min-height: 42px; }
+  .btn-sm { min-height: 34px; }
+
+  table { font-size: 12px; }
+}
+
+/* 하단 탭바: 모바일에서만 표시되는 앱 스타일 내비게이션 */
+@media (max-width: 640px) {
+  .bottom-tabbar {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--bg-elevated);
+    border-top: 1px solid var(--border);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+    z-index: 40;
+    box-shadow: 0 -2px 10px rgba(30,26,18,0.06);
+  }
+  .bottom-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 2px;
+    border-radius: 10px;
+    color: var(--text-dim);
+  }
+  .bottom-tab.active {
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .bottom-tab-icon { font-size: 19px; line-height: 1; }
+  .bottom-tab-label { font-size: 10.5px; font-weight: 600; }
 }
