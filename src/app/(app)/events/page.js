@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { CATEGORIES } from '@/lib/categories';
 
 const STATUS_LABEL = { OPEN: '진행중', CLOSED: '마감', CANCELLED: '취소됨', COMPLETED: '완료' };
 const STATUS_CLASS = { OPEN: 'badge-open', CLOSED: 'badge-closed', CANCELLED: 'badge-cancelled', COMPLETED: 'badge-completed' };
@@ -22,6 +23,7 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [sort, setSort] = useState('new');
+  const [category, setCategory] = useState('ALL');
 
   useEffect(() => {
     setLoading(true);
@@ -29,12 +31,13 @@ export default function EventsPage() {
       const params = new URLSearchParams();
       if (q.trim()) params.set('q', q.trim());
       params.set('sort', sort);
+      if (category !== 'ALL') params.set('category', category);
       const res = await fetch(`/api/events?${params.toString()}`);
       if (res.ok) setEvents((await res.json()).events);
       setLoading(false);
     }, 300);
     return () => clearTimeout(timer);
-  }, [q, sort]);
+  }, [q, sort, category]);
 
   return (
     <>
@@ -58,6 +61,26 @@ export default function EventsPage() {
           <option value="deadline">마감임박순</option>
           <option value="popular">인기순</option>
         </select>
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 18, paddingBottom: 4 }}>
+        <button
+          className={`btn btn-sm ${category === 'ALL' ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={() => setCategory('ALL')}
+          style={{ flexShrink: 0 }}
+        >
+          전체
+        </button>
+        {CATEGORIES.map((c) => (
+          <button
+            key={c.key}
+            className={`btn btn-sm ${category === c.key ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setCategory(c.key)}
+            style={{ flexShrink: 0 }}
+          >
+            {c.icon} {c.key}
+          </button>
+        ))}
       </div>
 
       {loading && <div className="empty-state">불러오는 중…</div>}
@@ -84,6 +107,7 @@ export default function EventsPage() {
                 <h3>{ev.title}</h3>
                 <span className={`badge ${STATUS_CLASS[ev.status]}`}>{STATUS_LABEL[ev.status]}</span>
               </div>
+              <div style={{ fontSize: 11.5, color: 'var(--text-dim)' }}>{CATEGORIES.find((c) => c.key === ev.category)?.icon} {ev.category}</div>
               {ev.description && <div className="desc">{ev.description}</div>}
               <div className="price">{minPrice.toLocaleString()}원~</div>
               <div className="progress-bar"><div className="progress-fill" style={{ width: `${pct}%` }} /></div>

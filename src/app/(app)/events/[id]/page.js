@@ -274,6 +274,7 @@ export default function EventDetailPage() {
           <span className={`badge ${STATUS_CLASS[event.status]}`} style={{ marginBottom: 8, display: 'inline-block' }}>
             {STATUS_LABEL[event.status]}
           </span>
+          <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--text-dim)' }}>{event.category}</span>
           <h1>{event.title}</h1>
           <p>
             <Link href={`/sellers/${event.host.id}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>{event.host.name}</Link>

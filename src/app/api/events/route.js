@@ -10,14 +10,19 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get('q')?.trim();
   const sort = searchParams.get('sort') || 'new';
+  const category = searchParams.get('category');
 
   const orderBy =
     sort === 'deadline' ? { deadline: 'asc' } :
     sort === 'popular' ? { orders: { _count: 'desc' } } :
     { createdAt: 'desc' };
 
+  const where = {};
+  if (q) where.title = { contains: q, mode: 'insensitive' };
+  if (category && category !== 'ALL') where.category = category;
+
   const events = await prisma.event.findMany({
-    where: q ? { title: { contains: q, mode: 'insensitive' } } : undefined,
+    where,
     orderBy,
     include: {
       host: { select: { id: true, name: true } },
@@ -50,7 +55,7 @@ export async function POST(req) {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const body = await req.json();
-  const { title, description, deadline, minQuantity, options, images, discountTiers, aiAutoReply } = body;
+  const { title, description, deadline, minQuantity, options, images, discountTiers, aiAutoReply, category } = body;
 
   if (!title || !title.trim()) {
     return NextResponse.json({ error: '제목을 입력해주세요.' }, { status: 400 });
@@ -78,6 +83,7 @@ export async function POST(req) {
       title: title.trim(),
       description: description || null,
       images: Array.isArray(images) ? images.filter(Boolean) : [],
+      category: category || '기타',
       deadline: new Date(deadline),
       minQuantity: Number(minQuantity) || 1,
       aiAutoReply: !!aiAutoReply,

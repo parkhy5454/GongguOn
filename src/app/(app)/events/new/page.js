@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { CATEGORIES } from '@/lib/categories';
 
 function defaultDeadline() {
   const d = new Date();
@@ -14,6 +15,7 @@ function defaultDeadline() {
 export default function NewEventPage() {
   const router = useRouter();
   const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('식품');
   const [description, setDescription] = useState('');
   const [deadline, setDeadline] = useState(defaultDeadline());
   const [minQuantity, setMinQuantity] = useState(10);
@@ -117,7 +119,7 @@ export default function NewEventPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title, description, deadline, minQuantity,
+        title, description, deadline, minQuantity, category,
         images: images.filter((img) => img.url).map((img) => img.url),
         options: options.map((o) => ({ name: o.name, price: o.price, stock: o.stock })),
         discountTiers: discountTiers.filter((t) => t.minParticipants && t.discountPercent),
@@ -147,6 +149,15 @@ export default function NewEventPage() {
           <div className="field">
             <label>제목</label>
             <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="예: 제주 감귤 5kg 공동구매" />
+          </div>
+
+          <div className="field">
+            <label>카테고리</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)}>
+              {CATEGORIES.map((c) => (
+                <option key={c.key} value={c.key}>{c.icon} {c.key}</option>
+              ))}
+            </select>
           </div>
 
           <div className="field">
