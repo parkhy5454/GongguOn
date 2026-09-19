@@ -48,11 +48,11 @@ export default function EventsPage() {
         <Link href="/events/new" className="btn btn-primary">+ 공구 등록</Link>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div className="events-filter-row" style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="🔍 공구 제목 검색"
+          placeholder="🔍 검색"
           style={{ maxWidth: 260 }}
         />
         <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ maxWidth: 160 }}>

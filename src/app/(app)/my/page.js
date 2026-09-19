@@ -65,9 +65,9 @@ export default function MyPage() {
       </div>
 
       <p style={{ fontSize: 13, color: 'var(--text-dim)' }}>
-        참여한 공구의 결제 상태는 각 공구 상세 페이지에서 확인/관리할 수 있어요. 아래 "공구 둘러보기"에서 참여했던 공구를 찾아 들어가보세요.
+        참여한 공구의 결제 상태는 각 공구 상세 페이지에서 확인/관리할 수 있어요. 아래 "공동구매"에서 참여했던 공구를 찾아 들어가보세요.
       </p>
-      <Link href="/events" className="btn btn-ghost" style={{ marginTop: 8 }}>공구 둘러보기로 이동</Link>
+      <Link href="/events" className="btn btn-ghost" style={{ marginTop: 8 }}>공동구매로 이동</Link>
     </>
   );
 }
