@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { io } from 'socket.io-client';
 
 const STATUS_LABEL = { OPEN: '진행중', CLOSED: '마감', CANCELLED: '취소됨', COMPLETED: '완료' };
@@ -37,6 +38,15 @@ export default function EventDetailPage() {
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewMsg, setReviewMsg] = useState('');
+
+  const [showReport, setShowReport] = useState(false);
+  const [reportReason, setReportReason] = useState('상품 미배송/먹튀 의심');
+  const [reportDetail, setReportDetail] = useState('');
+  const [reportSaving, setReportSaving] = useState(false);
+  const [reportMsg, setReportMsg] = useState('');
+
+  const [reminding, setReminding] = useState(false);
+  const [remindMsg, setRemindMsg] = useState('');
 
   async function loadEvent() {
     const res = await fetch(`/api/events/${id}`);
@@ -166,15 +176,48 @@ export default function EventDetailPage() {
     await loadEvent();
   }
 
+  async function submitReport(e) {
+    e.preventDefault();
+    setReportSaving(true);
+    setReportMsg('');
+    const res = await fetch(`/api/events/${id}/reports`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: reportReason, detail: reportDetail }),
+    });
+    const d = await res.json();
+    setReportSaving(false);
+    if (!res.ok) {
+      setReportMsg(d.error || '신고 접수에 실패했습니다.');
+      return;
+    }
+    setReportMsg('신고가 접수됐어요. 확인 후 조치할게요.');
+    setReportDetail('');
+  }
+
+  async function sendReminder() {
+    setReminding(true);
+    setRemindMsg('');
+    const res = await fetch(`/api/events/${id}/remind`, { method: 'POST' });
+    const d = await res.json();
+    setReminding(false);
+    setRemindMsg(res.ok ? `${d.sent}명에게 입금 리마인드를 보냈어요.` : d.error || '전송에 실패했습니다.');
+  }
+
   if (loading) return <div className="empty-state">불러오는 중…</div>;
   if (!data) return <div className="empty-state">공구를 찾을 수 없어요.</div>;
 
-  const { event, isHost, myOrder, orders, hostRating, totalParticipants } = data;
+  const { event, isHost, myOrder, orders, hostRating, totalParticipants, currentParticipants, currentDiscount, nextTier } = data;
   const option = event.options.find((o) => o.id === selectedOption);
   const remaining = option ? option.stock - option.soldCount : 0;
   const deadlinePassed = new Date(event.deadline) < new Date();
   const canJoin = event.status === 'OPEN' && !deadlinePassed && !isHost && !myOrder;
   const canReview = !isHost && myOrder?.paymentStatus === 'CONFIRMED' && event.status === 'COMPLETED';
+  // 지금 참여하면 몇 번째 참여자가 되는지 기준으로, 내가 실제로 받게 될 할인율을 계산 (서버 계산 방식과 동일)
+  const myJoinDiscount = (event.discountTiers || [])
+    .filter((t) => (currentParticipants || 0) + 1 >= t.minParticipants)
+    .reduce((max, t) => Math.max(max, t.discountPercent), 0);
+  const discountedUnitPrice = option ? Math.round(option.price * (1 - myJoinDiscount / 100)) : 0;
 
   return (
     <>
@@ -185,13 +228,32 @@ export default function EventDetailPage() {
           </span>
           <h1>{event.title}</h1>
           <p>
-            {event.host.name}
+            <Link href={`/sellers/${event.host.id}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>{event.host.name}</Link>
             {hostRating.avg ? ` · ⭐ ${hostRating.avg.toFixed(1)} (${hostRating.count}건)` : ' · 신규 판매자'}
             {' · 마감 '}{formatDT(event.deadline)}
             {' · '}{DELIVERY_LABEL[event.deliveryStatus]}
           </p>
+          {!isHost && (
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowReport(true)} style={{ marginTop: 6 }}>🚨 신고하기</button>
+          )}
         </div>
       </div>
+
+      {event.discountTiers?.length > 0 && (
+        <div className="card" style={{ marginBottom: 16, background: 'var(--accent-soft)', border: 'none' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', marginBottom: 4 }}>
+            🔥 지금 {currentParticipants}명 참여 중 {currentDiscount > 0 ? `· 현재 ${currentDiscount}% 할인 적용가` : ''}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+            {event.discountTiers
+              .slice()
+              .sort((a, b) => a.minParticipants - b.minParticipants)
+              .map((t) => `${t.minParticipants}명 이상 ${t.discountPercent}%`)
+              .join(' · ')}
+            {nextTier && ` · 다음 할인까지 ${nextTier.minParticipants - currentParticipants}명 남음`}
+          </div>
+        </div>
+      )}
 
       <div className="detail-grid">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -226,7 +288,15 @@ export default function EventDetailPage() {
                         <div>
                           <div style={{ fontWeight: 600, fontSize: 13.5 }}>{o.name}</div>
                           <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-                            {o.price.toLocaleString()}원 · 남은 수량 {Math.max(0, rem)}개
+                            {myJoinDiscount > 0 ? (
+                              <>
+                                <span style={{ textDecoration: 'line-through', marginRight: 4 }}>{o.price.toLocaleString()}원</span>
+                                <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{Math.round(o.price * (1 - myJoinDiscount / 100)).toLocaleString()}원</span>
+                              </>
+                            ) : (
+                              `${o.price.toLocaleString()}원`
+                            )}
+                            {' · 남은 수량 '}{Math.max(0, rem)}개
                           </div>
                         </div>
                       </div>
@@ -241,7 +311,8 @@ export default function EventDetailPage() {
                       <span>{qty}</span>
                       <button type="button" onClick={() => setQty((q) => Math.min(remaining, q + 1))}>+</button>
                       <span style={{ marginLeft: 10, fontSize: 13, color: 'var(--text-dim)' }}>
-                        상품 금액 {(option.price * qty).toLocaleString()}원
+                        상품 금액 {(discountedUnitPrice * qty).toLocaleString()}원
+                        {myJoinDiscount > 0 && ` (${myJoinDiscount}% 할인 적용)`}
                       </span>
                     </div>
                     {myPointBalance > 0 && (
@@ -256,7 +327,7 @@ export default function EventDetailPage() {
                       </label>
                     )}
                     <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 10 }}>
-                      최종 결제 금액: {Math.max(0, option.price * qty - (useMyPoints ? Math.min(myPointBalance, option.price * qty) : 0)).toLocaleString()}원
+                      최종 결제 금액: {Math.max(0, discountedUnitPrice * qty - (useMyPoints ? Math.min(myPointBalance, discountedUnitPrice * qty) : 0)).toLocaleString()}원
                     </div>
                     {error && <p className="error-text">{error}</p>}
                     <button className="btn btn-primary btn-block" type="submit" disabled={joining || remaining < 1}>
@@ -334,7 +405,24 @@ export default function EventDetailPage() {
 
           {isHost && (
             <div className="card">
-              <h3 style={{ marginTop: 0, fontSize: 14.5 }}>주문 / 정산 현황</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                <h3 style={{ margin: 0, fontSize: 14.5 }}>주문 / 정산 현황</h3>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <a className="btn btn-ghost btn-sm" href={`/api/events/${id}/export`}>⬇️ 정산/참여자 CSV</a>
+                  <button className="btn btn-ghost btn-sm" onClick={sendReminder} disabled={reminding}>
+                    {reminding ? '전송 중…' : '📩 미입금 리마인드 보내기'}
+                  </button>
+                </div>
+              </div>
+              {remindMsg && <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>{remindMsg}</p>}
+
+              {orders?.length > 0 && (
+                <div style={{ display: 'flex', gap: 16, margin: '12px 0', fontSize: 12.5, color: 'var(--text-dim)' }}>
+                  <span>확정 매출: <strong style={{ color: 'var(--text)' }}>{orders.filter((o) => o.paymentStatus === 'CONFIRMED').reduce((s, o) => s + o.amount, 0).toLocaleString()}원</strong></span>
+                  <span>입금 대기중: <strong style={{ color: 'var(--text)' }}>{orders.filter((o) => o.paymentStatus !== 'CONFIRMED').reduce((s, o) => s + o.amount, 0).toLocaleString()}원</strong></span>
+                </div>
+              )}
+
               {(!orders || orders.length === 0) && <div className="empty-state">아직 참여자가 없어요.</div>}
               {orders?.map((o) => (
                 <div key={o.id} className="order-row">
@@ -412,6 +500,41 @@ export default function EventDetailPage() {
           </form>
         </div>
       </div>
+
+      {showReport && (
+        <div className="modal-backdrop" onClick={() => { setShowReport(false); setReportMsg(''); }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>🚨 이 공구 신고하기</h2>
+            <form onSubmit={submitReport}>
+              <div className="field">
+                <label>신고 사유</label>
+                <select value={reportReason} onChange={(e) => setReportReason(e.target.value)}>
+                  <option>상품 미배송/먹튀 의심</option>
+                  <option>상품 설명과 실제 상품이 다름</option>
+                  <option>과장/허위 광고</option>
+                  <option>연락 두절</option>
+                  <option>기타</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>자세한 내용 (선택)</label>
+                <textarea value={reportDetail} onChange={(e) => setReportDetail(e.target.value)} rows={3} placeholder="상황을 자세히 적어주시면 확인에 도움이 돼요." />
+              </div>
+              {reportMsg && (
+                <p style={{ fontSize: 12.5, color: reportMsg.includes('접수됐어요') ? 'var(--success)' : 'var(--danger)' }}>{reportMsg}</p>
+              )}
+              <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setShowReport(false); setReportMsg(''); }}>
+                  닫기
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={reportSaving}>
+                  {reportSaving ? '접수 중…' : '신고 접수'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

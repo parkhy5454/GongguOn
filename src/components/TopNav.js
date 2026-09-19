@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import InviteButton from './InviteButton';
+import NotificationBell from './NotificationBell';
 
 export default function TopNav({ user }) {
   const pathname = usePathname();
@@ -23,6 +24,7 @@ export default function TopNav({ user }) {
         <Link href="/my" className={pathname === '/my' ? 'active' : ''}>내 활동</Link>
       </nav>
       <div className="spacer" />
+      <NotificationBell />
       <InviteButton referralCode={user.referralCode} />
       <div className="user-chip">
         <span>

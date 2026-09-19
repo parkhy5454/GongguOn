@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
 import { PURCHASE_REFERRER_BONUS, PURCHASE_REFEREE_BONUS } from '@/lib/referral';
+import { notify } from '@/lib/notify';
 
 export async function PATCH(req, { params }) {
   const user = await getCurrentUser();
@@ -41,6 +42,13 @@ export async function PATCH(req, { params }) {
 
   const io = global.__io;
   if (io) io.to(`event:${order.eventId}`).emit('order-updated', updated);
+
+  await notify(order.buyerId, {
+    type: 'payment_confirmed',
+    title: '입금이 확인됐어요',
+    body: `"${order.event.title}" 주문의 입금이 확인됐습니다.`,
+    url: `/events/${order.eventId}`,
+  });
 
   return NextResponse.json({ order: updated });
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
+import { getOrCreateAIUser, generateAIReply } from '@/lib/aiAssistant';
 
 export async function GET(req, { params }) {
   const user = await getCurrentUser();
@@ -32,6 +33,22 @@ export async function POST(req, { params }) {
 
   const io = global.__io;
   if (io) io.to(`event:${params.id}`).emit('new-message', message);
+
+  // AI 자동응답: 호스트가 켜둔 경우, 구매자(호스트가 아닌 사람)의 질문에 자동으로 답변
+  const event = await prisma.event.findUnique({ where: { id: params.id }, include: { options: true } });
+  if (event?.aiAutoReply && event.hostId !== user.id) {
+    const aiUser = await getOrCreateAIUser();
+    if (user.id !== aiUser.id) {
+      const replyText = await generateAIReply(event, content.trim());
+      if (replyText) {
+        const aiMessage = await prisma.eventMessage.create({
+          data: { eventId: params.id, authorId: aiUser.id, content: replyText },
+          include: { author: { select: { id: true, name: true } } },
+        });
+        if (io) io.to(`event:${params.id}`).emit('new-message', aiMessage);
+      }
+    }
+  }
 
   return NextResponse.json({ message });
 }

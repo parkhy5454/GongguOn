@@ -29,6 +29,8 @@ model User {
   messages     EventMessage[]
   reviewsGiven    Review[] @relation("Reviewer")
   reviewsReceived Review[] @relation("Target")
+  reports         Report[]
+  notifications   Notification[]
 }
 
 enum EventStatus {
@@ -53,6 +55,7 @@ model Event {
   deadline    DateTime
   status      EventStatus    @default(OPEN)
   deliveryStatus DeliveryStatus @default(PREPARING)
+  aiAutoReply Boolean  @default(false)
   createdAt   DateTime @default(now())
 
   hostId      String
@@ -62,6 +65,39 @@ model Event {
   orders      Order[]
   messages    EventMessage[]
   reviews     Review[]
+  discountTiers DiscountTier[]
+  reports     Report[]
+}
+
+model DiscountTier {
+  id              String @id @default(cuid())
+  eventId         String
+  event           Event  @relation(fields: [eventId], references: [id])
+  minParticipants Int
+  discountPercent Int
+}
+
+model Report {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  reporterId String
+  reporter  User     @relation(fields: [reporterId], references: [id])
+  reason    String
+  detail    String?
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  title     String
+  body      String
+  url       String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model EventOption {
@@ -92,6 +128,7 @@ model Order {
   buyer          User          @relation(fields: [buyerId], references: [id])
   quantity       Int
   amount         Int
+  discountPercent Int          @default(0)
   pointsUsed     Int           @default(0)
   depositorName  String?
   paymentStatus  PaymentStatus @default(PENDING)

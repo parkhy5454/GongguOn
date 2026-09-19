@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
+import { applicableDiscount } from '@/lib/pricing';
 
 export async function GET(req, { params }) {
   const user = await getCurrentUser();
@@ -11,6 +12,7 @@ export async function GET(req, { params }) {
     include: {
       host: { select: { id: true, name: true, email: true } },
       options: true,
+      discountTiers: { orderBy: { minParticipants: 'asc' } },
       reviews: {
         include: { reviewer: { select: { id: true, name: true } } },
         orderBy: { createdAt: 'desc' },
@@ -43,9 +45,11 @@ export async function GET(req, { params }) {
     });
   }
 
-  const totalParticipants = isHost
-    ? new Set(orders.map((o) => o.buyerId)).size
-    : undefined;
+  // 참여 인원(구매 주문 기준 고유 인원 수)은 동적 할인 계산을 위해 누구에게나 공개
+  const allOrders = isHost ? orders : await prisma.order.findMany({ where: { eventId: params.id }, select: { buyerId: true } });
+  const currentParticipants = new Set(allOrders.map((o) => o.buyerId)).size;
+  const currentDiscount = applicableDiscount(event.discountTiers, currentParticipants);
+  const nextTier = event.discountTiers.find((t) => t.minParticipants > currentParticipants) || null;
 
   return NextResponse.json({
     event,
@@ -53,6 +57,9 @@ export async function GET(req, { params }) {
     isHost,
     myOrder,
     orders,
-    totalParticipants,
+    totalParticipants: isHost ? currentParticipants : undefined,
+    currentParticipants,
+    currentDiscount,
+    nextTier,
   });
 }

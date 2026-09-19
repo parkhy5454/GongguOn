@@ -18,6 +18,8 @@ export default function NewEventPage() {
   const [deadline, setDeadline] = useState(defaultDeadline());
   const [minQuantity, setMinQuantity] = useState(10);
   const [options, setOptions] = useState([{ name: '기본', price: '', stock: '' }]);
+  const [discountTiers, setDiscountTiers] = useState([]);
+  const [aiAutoReply, setAiAutoReply] = useState(false);
   const [images, setImages] = useState([]); // { url, uploading }
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -91,6 +93,16 @@ export default function NewEventPage() {
     setOptions((prev) => prev.filter((_, i) => i !== idx));
   }
 
+  function updateTier(idx, field, value) {
+    setDiscountTiers((prev) => prev.map((t, i) => (i === idx ? { ...t, [field]: value } : t)));
+  }
+  function addTier() {
+    setDiscountTiers((prev) => [...prev, { minParticipants: '', discountPercent: '' }]);
+  }
+  function removeTier(idx) {
+    setDiscountTiers((prev) => prev.filter((_, i) => i !== idx));
+  }
+
   async function onSubmit(e) {
     e.preventDefault();
     setError('');
@@ -108,6 +120,8 @@ export default function NewEventPage() {
         title, description, deadline, minQuantity,
         images: images.filter((img) => img.url).map((img) => img.url),
         options: options.map((o) => ({ name: o.name, price: o.price, stock: o.stock })),
+        discountTiers: discountTiers.filter((t) => t.minParticipants && t.discountPercent),
+        aiAutoReply,
       }),
     });
     const data = await res.json();
@@ -228,6 +242,43 @@ export default function NewEventPage() {
               </div>
             ))}
             <button type="button" className="btn btn-ghost btn-sm" onClick={addOption}>+ 옵션 추가</button>
+          </div>
+
+          <div className="field">
+            <label>🔥 참여인원 할인 (선택 — 핀둬둬처럼 사람이 모일수록 가격이 내려가요)</label>
+            {discountTiers.map((t, idx) => (
+              <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+                <input
+                  type="number" min={2} placeholder="인원 수 (예: 5)"
+                  value={t.minParticipants}
+                  onChange={(e) => updateTier(idx, 'minParticipants', e.target.value)}
+                />
+                <span style={{ fontSize: 12.5, color: 'var(--text-dim)' }}>명 이상 →</span>
+                <input
+                  type="number" min={1} max={90} placeholder="할인율 (예: 10)"
+                  value={t.discountPercent}
+                  onChange={(e) => updateTier(idx, 'discountPercent', e.target.value)}
+                  style={{ maxWidth: 110 }}
+                />
+                <span style={{ fontSize: 12.5, color: 'var(--text-dim)' }}>%</span>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeTier(idx)}>✕</button>
+              </div>
+            ))}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={addTier}>+ 할인 구간 추가</button>
+            <p style={{ fontSize: 11.5, color: 'var(--text-dim)', margin: '6px 0 0' }}>
+              예: 5명 이상 → 10%, 10명 이상 → 20% 처럼 여러 구간을 만들 수 있어요. 참여자가 늘어날수록 이후 참여자들에게 자동으로 더 싼 가격이 적용돼요.
+            </p>
+          </div>
+
+          <div className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox" id="aiAutoReply" checked={aiAutoReply}
+              onChange={(e) => setAiAutoReply(e.target.checked)}
+              style={{ width: 'auto' }}
+            />
+            <label htmlFor="aiAutoReply" style={{ color: 'var(--text)', fontSize: 13, cursor: 'pointer' }}>
+              🤖 채팅에서 AI가 자주 묻는 질문에 자동으로 답해주기
+            </label>
           </div>
 
           {error && <p className="error-text">{error}</p>}

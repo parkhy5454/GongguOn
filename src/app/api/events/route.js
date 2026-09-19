@@ -12,6 +12,7 @@ export async function GET() {
     include: {
       host: { select: { id: true, name: true } },
       options: true,
+      discountTiers: true,
     },
   });
 
@@ -38,7 +39,7 @@ export async function POST(req) {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const body = await req.json();
-  const { title, description, deadline, minQuantity, options, images } = body;
+  const { title, description, deadline, minQuantity, options, images, discountTiers, aiAutoReply } = body;
 
   if (!title || !title.trim()) {
     return NextResponse.json({ error: '제목을 입력해주세요.' }, { status: 400 });
@@ -55,6 +56,12 @@ export async function POST(req) {
     }
   }
 
+  const validTiers = Array.isArray(discountTiers)
+    ? discountTiers
+        .filter((t) => Number(t.minParticipants) > 0 && Number(t.discountPercent) > 0)
+        .map((t) => ({ minParticipants: Number(t.minParticipants), discountPercent: Math.min(90, Number(t.discountPercent)) }))
+    : [];
+
   const event = await prisma.event.create({
     data: {
       title: title.trim(),
@@ -62,6 +69,7 @@ export async function POST(req) {
       images: Array.isArray(images) ? images.filter(Boolean) : [],
       deadline: new Date(deadline),
       minQuantity: Number(minQuantity) || 1,
+      aiAutoReply: !!aiAutoReply,
       hostId: user.id,
       options: {
         create: options.map((o) => ({
@@ -70,8 +78,9 @@ export async function POST(req) {
           stock: Number(o.stock),
         })),
       },
+      discountTiers: { create: validTiers },
     },
-    include: { options: true },
+    include: { options: true, discountTiers: true },
   });
 
   // 추천 리워드: 추천받은 사람의 "첫 공구 개설"이면 추천인+피추천인 모두에게 포인트 지급

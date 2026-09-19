@@ -29,6 +29,7 @@ app.prepare().then(() => {
   });
 
   io.on('connection', (socket) => {
+    if (socket.user?.sub) socket.join(`user:${socket.user.sub}`);
     socket.on('join-event', (eventId) => socket.join(`event:${eventId}`));
     socket.on('leave-event', (eventId) => socket.leave(`event:${eventId}`));
   });
