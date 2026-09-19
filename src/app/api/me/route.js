@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/authServer';
 import { prisma } from '@/lib/prisma';
+import { isAdminEmail } from '@/lib/admin';
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -19,6 +20,7 @@ export async function GET() {
       reviewCount: agg._count.rating,
       referralCode: user.referralCode,
       pointBalance: user.pointBalance,
+      isAdmin: isAdminEmail(user.email),
     },
   });
 }
