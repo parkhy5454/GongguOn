@@ -53,9 +53,26 @@ git push -u origin main
 
 ## 4. Render 배포
 - New Web Service → GitHub 저장소 연결
-- Build Command: `npm install && npx prisma generate && npx prisma db push && npm run build`
+- Build Command: `npm install && npx prisma generate && npx prisma migrate deploy && npm run build`
 - Start Command: `npm start`
 - Environment Variables: `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `NODE_ENV=production`, (선택) `GEMINI_API_KEY`, (선택) `RESEND_API_KEY`, `RESEND_FROM`
+
+> ⚠️ **데이터 보존 방식으로 전환**: 이전에는 `prisma db push --force-reset`을 안내드렸는데, 이 명령은 스키마가 바뀔 때마다 기존 데이터를 전부 삭제합니다. 이제부터는 `prisma migrate deploy`를 사용합니다 — 이 명령은 **기존 데이터를 그대로 둔 채** 변경된 부분만 반영합니다. 앞으로 새 기능을 추가해도 회원/공구 데이터가 사라지지 않습니다.
+
+### 최초 1회만: 기존 데이터베이스와 마이그레이션 이력 맞추기
+지금 Neon 데이터베이스는 이미 최신 스키마 상태입니다(직전 배포에서 `--force-reset`으로 만들어짐). 그래서 이 프로젝트에 새로 생긴 "마이그레이션 이력"과 실제 DB 상태를 한 번 맞춰줘야, 이후 `migrate deploy`가 "테이블이 이미 있어요" 오류 없이 정상 작동합니다.
+
+1. 이번 zip으로 GitHub 덮어쓰기 + Render 환경변수의 Build Command를 위 내용으로 수정
+2. 재배포가 시작되면 (첫 배포는 "테이블이 이미 존재합니다" 류의 오류로 실패할 수 있어요 — 예상된 상황입니다)
+3. Render 대시보드 → 서비스 → **Shell** 탭 열기
+4. 아래 명령어 실행:
+   ```
+   npx prisma migrate resolve --applied 20260101000000_init
+   ```
+5. 좌측 상단 **Manual Deploy → Deploy latest commit**으로 재배포
+6. 이번엔 정상적으로 "Live"가 됩니다
+
+이 작업은 **딱 한 번만** 하시면 되고, 이후로는 스키마가 바뀌어도 그냥 GitHub에 덮어쓰기만 하면 데이터 손실 없이 자동으로 반영됩니다.
 
 ---
 
