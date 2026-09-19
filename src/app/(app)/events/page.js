@@ -45,7 +45,6 @@ export default function EventsPage() {
         <div>
           <h1>공동구매</h1>
         </div>
-        <Link href="/events/new" className="btn btn-primary">+ 공구 등록</Link>
       </div>
 
       <div className="events-filter-row" style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
