@@ -15,7 +15,7 @@ export async function GET() {
 
   return NextResponse.json({
     user: {
-      id: user.id, name: user.name, email: user.email,
+      id: user.id, name: user.name, email: user.email, phone: user.phone,
       rating: agg._avg.rating || null,
       reviewCount: agg._count.rating,
       referralCode: user.referralCode,
@@ -23,4 +23,23 @@ export async function GET() {
       isAdmin: isAdminEmail(user.email),
     },
   });
+}
+
+export async function PATCH(req) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  const { name, phone } = await req.json();
+  const data = {};
+  if (typeof name === 'string') {
+    if (!name.trim()) return NextResponse.json({ error: '이름을 입력해주세요.' }, { status: 400 });
+    data.name = name.trim();
+  }
+  if (typeof phone === 'string') {
+    data.phone = phone.trim() || null;
+  }
+
+  const updated = await prisma.user.update({ where: { id: user.id }, data });
+
+  return NextResponse.json({ user: { id: updated.id, name: updated.name, phone: updated.phone } });
 }

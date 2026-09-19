@@ -30,11 +30,11 @@ export default function TopNav({ user }) {
       <NotificationBell />
       <InviteButton referralCode={user.referralCode} />
       <div className="user-chip">
-        <span>
+        <Link href="/profile" style={{ color: 'inherit' }}>
           {user.name}
           {user.rating ? ` · ⭐ ${user.rating.toFixed(1)}` : ''}
           {typeof user.pointBalance === 'number' ? ` · 💰 ${user.pointBalance.toLocaleString()}P` : ''}
-        </span>
+        </Link>
         <button className="btn btn-ghost btn-sm" onClick={logout}>로그아웃</button>
       </div>
     </div>
