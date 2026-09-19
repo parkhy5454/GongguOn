@@ -16,6 +16,7 @@
 - **판매자 신뢰도**: 완료된 공구에 한해 구매자가 별점·후기 작성 → 판매자 상점 페이지(`/sellers/[id]`)에 평점·이력 누적
 - **판매자 운영 도구**: 정산/참여자 명단 CSV 다운로드(엑셀에서 바로 열림), 확정 매출·대기 금액 요약
 - **신고 기능**: 문제가 있는 공구를 신고 접수 (DB에 기록, 관리자 대시보드는 다음 단계)
+- **비밀번호 찾기/재설정**: 로그인 화면에서 이메일로 재설정 링크 요청 → 이메일로 받은 링크(30분 유효)로 새 비밀번호 설정 (Resend 이메일 연동 필요, 없으면 링크가 콘솔 로그로만 남고 발송은 스킵됨)
 - **배송 상태 관리**: 준비중 → 배송중 → 배송완료
 
 ## 기술 스택
@@ -54,7 +55,7 @@ git push -u origin main
 - New Web Service → GitHub 저장소 연결
 - Build Command: `npm install && npx prisma generate && npx prisma db push && npm run build`
 - Start Command: `npm start`
-- Environment Variables: `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `NODE_ENV=production`
+- Environment Variables: `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `NODE_ENV=production`, (선택) `GEMINI_API_KEY`, (선택) `RESEND_API_KEY`, `RESEND_FROM`
 
 ---
 

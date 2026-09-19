@@ -43,6 +43,9 @@ export default function LoginPage() {
           <div className="field">
             <label>비밀번호</label>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" />
+            <div style={{ textAlign: 'right' }}>
+              <Link href="/forgot-password" style={{ fontSize: 12, color: 'var(--text-dim)' }}>비밀번호를 잊으셨나요?</Link>
+            </div>
           </div>
           {error && <p className="error-text">{error}</p>}
           <button className="btn btn-primary btn-block" type="submit" disabled={loading} style={{ marginTop: 6 }}>
