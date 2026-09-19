@@ -22,6 +22,8 @@ export default function NewEventPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiMsg, setAiMsg] = useState('');
 
   async function handleFiles(e) {
     const files = Array.from(e.target.files || []);
@@ -52,6 +54,31 @@ export default function NewEventPage() {
 
   function removeImage(id) {
     setImages((prev) => prev.filter((img) => img.id !== id));
+  }
+
+  async function generateWithAI() {
+    const firstReady = images.find((img) => img.url);
+    if (!firstReady) return;
+    setAiLoading(true);
+    setAiMsg('');
+    try {
+      const res = await fetch('/api/ai/describe-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: firstReady.url }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAiMsg(data.error || 'AI 자동 작성에 실패했어요.');
+      } else {
+        if (data.title) setTitle(data.title);
+        if (data.description) setDescription(data.description);
+        setAiMsg('AI가 작성한 내용이에요. 필요하면 자유롭게 수정하세요.');
+      }
+    } catch {
+      setAiMsg('AI 자동 작성 중 오류가 발생했어요.');
+    }
+    setAiLoading(false);
   }
 
   function updateOption(idx, field, value) {
@@ -161,6 +188,18 @@ export default function NewEventPage() {
             <p style={{ fontSize: 11.5, color: 'var(--text-dim)', margin: 0 }}>
               📷 버튼을 누르면 휴대폰에서 바로 사진을 찍거나 앨범에서 여러 장 선택할 수 있어요.
             </p>
+            {images.some((img) => img.url) && (
+              <div style={{ marginTop: 8 }}>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={generateWithAI} disabled={aiLoading}>
+                  {aiLoading ? '✨ AI가 작성 중…' : '✨ 사진으로 AI 자동 작성'}
+                </button>
+                {aiMsg && (
+                  <p style={{ fontSize: 11.5, marginTop: 4, color: aiMsg.includes('실패') || aiMsg.includes('오류') ? 'var(--danger)' : 'var(--text-dim)' }}>
+                    {aiMsg}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="field">
