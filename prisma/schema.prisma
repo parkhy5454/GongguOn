@@ -9,95 +9,106 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id           String   @id @default(cuid())
+  email        String   @unique
   name         String
   passwordHash String
-  createdAt    DateTime  @default(now())
+  createdAt    DateTime @default(now())
 
-  messages     Message[]
-  memberships  ChannelMember[]
-  todosOwned   Todo[]    @relation("TodoAssignee")
-  todosCreated Todo[]    @relation("TodoCreator")
+  hostedEvents Event[]   @relation("Host")
+  orders       Order[]
+  messages     EventMessage[]
+  reviewsGiven    Review[] @relation("Reviewer")
+  reviewsReceived Review[] @relation("Target")
 }
 
-model Channel {
-  id          String    @id @default(cuid())
-  name        String
-  description String?
-  isPrivate   Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-
-  members     ChannelMember[]
-  messages    Message[]
-  todos       Todo[]
-}
-
-model ChannelMember {
-  id        String   @id @default(cuid())
-  userId    String
-  channelId String
-  joinedAt  DateTime @default(now())
-
-  user      User     @relation(fields: [userId], references: [id])
-  channel   Channel  @relation(fields: [channelId], references: [id])
-
-  @@unique([userId, channelId])
-}
-
-model Message {
-  id         String    @id @default(cuid())
-  content    String
-  isDecision Boolean   @default(false)
-  parentId   String?
-  createdAt  DateTime  @default(now())
-
-  channelId  String
-  channel    Channel   @relation(fields: [channelId], references: [id])
-
-  authorId   String
-  author     User      @relation(fields: [authorId], references: [id])
-
-  parent     Message?  @relation("Replies", fields: [parentId], references: [id])
-  replies    Message[] @relation("Replies")
-
-  attachments Attachment[]
-  todo        Todo?
-}
-
-model Attachment {
-  id        String   @id @default(cuid())
-  filename  String
-  url       String
-  size      Int
-  createdAt DateTime @default(now())
-
-  messageId String
-  message   Message  @relation(fields: [messageId], references: [id])
-}
-
-enum TodoStatus {
+enum EventStatus {
   OPEN
-  IN_PROGRESS
+  CLOSED
+  CANCELLED
+  COMPLETED
+}
+
+enum DeliveryStatus {
+  PREPARING
+  SHIPPING
   DONE
 }
 
-model Todo {
-  id          String     @id @default(cuid())
+model Event {
+  id          String   @id @default(cuid())
   title       String
-  status      TodoStatus @default(OPEN)
-  dueDate     DateTime?
-  createdAt   DateTime   @default(now())
+  description String?
+  imageUrl    String?
+  minQuantity Int      @default(1)
+  deadline    DateTime
+  status      EventStatus    @default(OPEN)
+  deliveryStatus DeliveryStatus @default(PREPARING)
+  createdAt   DateTime @default(now())
 
-  channelId   String
-  channel     Channel    @relation(fields: [channelId], references: [id])
+  hostId      String
+  host        User     @relation("Host", fields: [hostId], references: [id])
 
-  messageId   String?    @unique
-  message     Message?   @relation(fields: [messageId], references: [id])
+  options     EventOption[]
+  orders      Order[]
+  messages    EventMessage[]
+  reviews     Review[]
+}
 
-  assigneeId  String?
-  assignee    User?      @relation("TodoAssignee", fields: [assigneeId], references: [id])
+model EventOption {
+  id        String  @id @default(cuid())
+  eventId   String
+  event     Event   @relation(fields: [eventId], references: [id])
+  name      String
+  price     Int
+  stock     Int
+  soldCount Int     @default(0)
 
-  creatorId   String
-  creator     User       @relation("TodoCreator", fields: [creatorId], references: [id])
+  orders    Order[]
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  CONFIRMED
+}
+
+model Order {
+  id             String        @id @default(cuid())
+  eventId        String
+  event          Event         @relation(fields: [eventId], references: [id])
+  optionId       String
+  option         EventOption   @relation(fields: [optionId], references: [id])
+  buyerId        String
+  buyer          User          @relation(fields: [buyerId], references: [id])
+  quantity       Int
+  amount         Int
+  depositorName  String?
+  paymentStatus  PaymentStatus @default(PENDING)
+  createdAt      DateTime      @default(now())
+}
+
+model EventMessage {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  reviewerId String
+  reviewer  User     @relation("Reviewer", fields: [reviewerId], references: [id])
+  targetId  String
+  target    User     @relation("Target", fields: [targetId], references: [id])
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, reviewerId])
 }

@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'WorkTalk',
-  description: '카톡보다 체계적인 팀 업무 메신저',
+  title: '공구온 GongguOn',
+  description: '정산·재고·신뢰까지 한 번에 해결하는 공동구매 전용 플랫폼',
 };
 
 export default function RootLayout({ children }) {

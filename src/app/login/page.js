@@ -15,42 +15,37 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || '로그인에 실패했습니다.');
-        setLoading(false);
-        return;
-      }
-      router.push('/dashboard');
-      router.refresh();
-    } catch (err) {
-      setError('네트워크 오류가 발생했습니다.');
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || '로그인에 실패했습니다.');
       setLoading(false);
+      return;
     }
+    router.push('/events');
+    router.refresh();
   }
 
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h1>WorkTalk</h1>
-        <p className="sub">팀 업무 메신저에 로그인하세요</p>
+        <h1>공구온</h1>
+        <p className="sub">정산·재고·신뢰까지, 공동구매 전용 플랫폼</p>
         <form onSubmit={onSubmit}>
           <div className="field">
             <label>이메일</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@company.com" />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@email.com" />
           </div>
           <div className="field">
             <label>비밀번호</label>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" />
           </div>
           {error && <p className="error-text">{error}</p>}
-          <button className="btn btn-primary" type="submit" disabled={loading} style={{ marginTop: 6 }}>
+          <button className="btn btn-primary btn-block" type="submit" disabled={loading} style={{ marginTop: 6 }}>
             {loading ? '로그인 중…' : '로그인'}
           </button>
         </form>

@@ -1,140 +1,66 @@
-# WorkTalk — 팀 업무 협업 메신저 (MVP)
+# 공구온 (GongguOn) — 공동구매 전용 플랫폼 MVP
 
-카카오톡으로 업무 소통을 하다가 겪는 문제(정보 유실, 파일 관리 부재, 할 일 추적 불가, 결정사항 불명확)를
-해결하기 위한 업무 특화 메신저 MVP입니다.
+카카오톡 오픈채팅 기반 공동구매의 고질적인 문제(수작업 정산, 재고 파악 불가, 판매자 신뢰 확인 불가)를
+해결하기 위한 공동구매 전용 플랫폼 MVP입니다.
 
 ## 핵심 기능
-- 이메일/비밀번호 로그인·회원가입 (JWT 쿠키 인증)
-- 채널 기반 대화 + **실시간 메시지** (Socket.io)
-- **공개 채널** (누구나 자동 참여) / **비공개 채널** (초대받은 사람만 접근 가능)
-- 채널 내 **이메일로 팀원 초대**
-- **파일 첨부** (최대 10MB)
-- 메시지를 **"결정으로 표시"** → 별도 결정 로그 페이지에서 모아보기
-- 메시지를 **"할 일로 전환"** → 담당자/기한과 함께 할 일 보드에서 상태 관리 (할 일 → 진행 중 → 완료)
-- 기본적인 모바일 화면 대응
+- 이메일/비밀번호 로그인·회원가입 (누구나 구매자/판매자 겸용)
+- **공구 개설**: 옵션별(색상/사이즈 등) 가격·수량 설정, 마감일, 최소 성사 수량
+- **실시간 재고 관리**: 참여할 때마다 옵션별 재고가 즉시 차감, 품절 시 자동 마감
+- **정산**: 구매자가 입금자명과 함께 "입금완료" 표시 → 판매자가 "입금 확인" 버튼으로 확정
+- **공구별 실시간 채팅** (Socket.io) — 질문/공지를 카톡 없이 그 자리에서
+- **판매자 신뢰도**: 완료된 공구에 한해 구매자가 별점·후기 작성 → 판매자 프로필에 평점 누적
+- **배송 상태 관리**: 준비중 → 배송중 → 배송완료
 
 ## 기술 스택
-- **Next.js 14** (App Router, 프론트+백엔드 한 프로젝트)
-- **Socket.io** — 실시간 채팅 (커스텀 Node 서버 `server.js`로 구동, Render의 상시 실행 서버에 적합)
-- **Prisma + Neon (PostgreSQL)** — 데이터베이스
-- **JWT + bcrypt** — 인증
-- **GitHub** — 코드 저장소
-- **Render** — 배포
+- Next.js 14 (App Router, 프론트+백엔드 한 프로젝트)
+- Socket.io — 실시간 채팅/주문 업데이트
+- Prisma + Neon (PostgreSQL)
+- JWT + bcrypt 인증
+- GitHub + Render 배포
 
 ---
 
-## 1. 로컬에서 실행하기
-
-### 1-1. 필요 조건
-- Node.js 18.18 이상
-- Neon 계정 (무료): https://neon.tech
-
-### 1-2. 설치
+## 1. 로컬 실행
 ```bash
 npm install
-```
-
-### 1-3. 환경변수 설정
-`.env.example`을 복사해서 `.env` 파일을 만듭니다.
-
-```bash
-cp .env.example .env
-```
-
-Neon 대시보드에서 프로젝트를 만들면 두 개의 연결 문자열을 줍니다:
-- **Pooled connection** → `.env`의 `DATABASE_URL`
-- **Direct connection** → `.env`의 `DIRECT_URL` (Prisma 마이그레이션용)
-
-`JWT_SECRET`은 아무 랜덤 문자열(32자 이상 권장)로 채워주세요.
-
-### 1-4. DB 스키마 반영
-```bash
+cp .env.example .env   # DATABASE_URL / DIRECT_URL / JWT_SECRET 채우기
 npx prisma generate
 npx prisma db push
-```
-
-### 1-5. 개발 서버 실행
-```bash
 npm run dev
 ```
-http://localhost:3000 에서 확인 가능합니다.
 
----
-
-## 2. GitHub에 업로드하기
-
-압축을 푼 폴더에서:
-
+## 2. GitHub 업로드
 ```bash
-cd worktalk
 git init
 git add .
-git commit -m "Initial commit: WorkTalk MVP"
+git commit -m "Initial commit: GongguOn MVP"
 git branch -M main
-git remote add origin https://github.com/[내계정]/worktalk.git
+git remote add origin https://github.com/[내계정]/gonggu-on.git
 git push -u origin main
 ```
+(코딩 없이 하시려면: GitHub에서 새 저장소 생성 → "uploading an existing file" → 이 폴더 전체를 드래그 앤 드롭 → Commit)
 
-> `.env` 파일은 `.gitignore`에 포함되어 있어 GitHub에 올라가지 않습니다.
-> Render 배포 시에는 Render 대시보드에서 환경변수를 따로 등록합니다 (아래 3단계).
+## 3. Neon (DB)
+- neon.tech에서 새 프로젝트 생성 → Connection string에서 Pooled(=DATABASE_URL)와 Direct(=DIRECT_URL) 두 개를 복사
 
-GitHub 저장소가 아직 없다면:
-1. https://github.com/new 에서 저장소 생성 (Public/Private 무관)
-2. 위 명령어의 `[내계정]` 부분을 본인 계정명/저장소명으로 수정 후 실행
-
----
-
-## 3. Neon (데이터베이스) 설정
-
-1. https://neon.tech 가입 후 New Project 생성
-2. 프로젝트 생성 시 리전은 서비스 대상 사용자와 가까운 곳(예: Asia-Pacific) 선택
-3. **Connection Details**에서:
-   - `Pooled connection` 문자열 → 나중에 Render의 `DATABASE_URL`
-   - `Direct connection` 문자열 → Render의 `DIRECT_URL`
-4. 로컬에서 `npx prisma db push`로 최초 1회 스키마를 반영해두면 Render 배포 후 바로 사용 가능
-   (또는 Render 최초 배포 후 Render Shell에서 실행해도 됩니다)
+## 4. Render 배포
+- New Web Service → GitHub 저장소 연결
+- Build Command: `npm install && npx prisma generate && npx prisma db push && npm run build`
+- Start Command: `npm start`
+- Environment Variables: `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `NODE_ENV=production`
 
 ---
 
-## 4. Render에 배포하기
+## 알려진 제한사항 (MVP 기준)
+- **결제**: 실제 PG(카드결제) 연동 없이, "계좌 입금 + 입금자명 대조 + 판매자 수동 확인" 방식입니다. 실서비스 전환 시 토스페이먼츠/PG사 연동을 권장합니다.
+- **알림**: 입금 리마인드, 마감 임박 알림 등은 아직 없습니다 (앱 내 실시간 반영만 지원).
+- **자동 마감**: 최소 수량 미달 시 자동 취소는 없고, 판매자가 수동으로 "공구 취소" 처리해야 합니다.
+- **정산 리포트**: 판매자별 매출 통계/엑셀 다운로드는 다음 단계 기능입니다.
 
-1. https://render.com 가입 → **New +** → **Web Service**
-2. GitHub 저장소(worktalk) 연결
-3. 설정값:
-   - **Environment**: Node
-   - **Build Command**: `npm install && npm run build`
-   - **Start Command**: `npm start`
-   - **Instance Type**: Free 또는 Starter (Socket.io 실시간 연결은 상시 실행 서비스에서 가장 안정적으로 동작합니다. Free 플랜은 일정 시간 미사용 시 슬립될 수 있습니다.)
-4. **Environment Variables**에 아래 값 등록:
-   | Key | Value |
-   |---|---|
-   | `DATABASE_URL` | Neon Pooled connection 문자열 |
-   | `DIRECT_URL` | Neon Direct connection 문자열 |
-   | `JWT_SECRET` | 랜덤 문자열 (32자 이상) |
-   | `NODE_ENV` | `production` |
-5. **Create Web Service** 클릭 → 자동 빌드·배포 시작
-6. 최초 배포 후 스키마가 아직 없다면 Render 대시보드의 **Shell** 탭에서:
-   ```bash
-   npx prisma db push
-   ```
-
-배포가 끝나면 Render가 제공하는 `https://[서비스명].onrender.com` 주소로 접속해 테스트합니다.
-
----
-
-## 5. 알려진 제한사항 (MVP 기준)
-- **파일 업로드**: 현재 서버 로컬 디스크(`public/uploads`)에 저장됩니다. Render 무료/기본 플랜은 재배포 시 디스크가 초기화되므로, 운영 단계에서는 Render의 **Persistent Disk** 추가 또는 S3/Cloudinary 같은 외부 스토리지 연동을 권장합니다.
-- **알림**: 현재 인앱 실시간 알림만 있고, 푸시/이메일 알림은 없습니다.
-- **권한 관리**: 모든 로그인 사용자가 모든 채널에 접근 가능한 단순 구조입니다. 조직/역할 기반 권한은 다음 단계 기능입니다.
-- **동시 접속 규모**: 소규모 팀(수십 명) 기준 MVP이며, 대규모 트래픽 대응은 별도 설계가 필요합니다.
-
-## 6. 다음 개발 후보
-- 비공개 채널 / 멤버 초대
-- AI 메시지 요약, 미확인 메시지 요약
-- 외부 파일 스토리지 연동 (S3 등)
-- 알림(이메일/푸시)
-- 워크스페이스(조직) 단위 분리 및 관리자 대시보드
-
----
-
-*이 프로젝트는 "카카오톡의 업무용 한계를 보완하는 팀 협업 메신저" 기획서를 기반으로 만든 MVP 구현체입니다.*
+## 다음 개발 후보
+- PG 결제 연동 (토스페이먼츠 등)
+- 마감 임박/미입금 알림 (이메일/푸시)
+- 최소 수량 미달 시 자동 취소 스케줄러
+- 판매자 정산 대시보드 (기간별 매출, 정산 내역 엑셀 다운로드)
+- 상품 이미지 업로드

@@ -17,35 +17,25 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   });
 
-  const io = new Server(httpServer, {
-    path: '/socket.io',
-  });
+  const io = new Server(httpServer, { path: '/socket.io' });
 
   io.use((socket, next2) => {
     const cookieHeader = socket.handshake.headers.cookie;
     const token = getTokenFromCookieHeader(cookieHeader);
     const payload = token ? verifyToken(token) : null;
-    if (!payload) {
-      return next2(new Error('unauthorized'));
-    }
+    if (!payload) return next2(new Error('unauthorized'));
     socket.user = payload;
     next2();
   });
 
   io.on('connection', (socket) => {
-    socket.on('join-channel', (channelId) => {
-      socket.join(`channel:${channelId}`);
-    });
-
-    socket.on('leave-channel', (channelId) => {
-      socket.leave(`channel:${channelId}`);
-    });
+    socket.on('join-event', (eventId) => socket.join(`event:${eventId}`));
+    socket.on('leave-event', (eventId) => socket.leave(`event:${eventId}`));
   });
 
-  // Expose io globally so API routes can emit events
   global.__io = io;
 
   httpServer.listen(port, () => {
-    console.log(`> WorkTalk ready on http://${hostname}:${port}`);
+    console.log(`> GongguOn ready on http://${hostname}:${port}`);
   });
 });

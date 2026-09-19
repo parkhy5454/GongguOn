@@ -16,46 +16,41 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || '회원가입에 실패했습니다.');
-        setLoading(false);
-        return;
-      }
-      router.push('/dashboard');
-      router.refresh();
-    } catch (err) {
-      setError('네트워크 오류가 발생했습니다.');
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || '회원가입에 실패했습니다.');
       setLoading(false);
+      return;
     }
+    router.push('/events');
+    router.refresh();
   }
 
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h1>팀 시작하기</h1>
-        <p className="sub">30초면 가입이 끝나요</p>
+        <h1>공구온 시작하기</h1>
+        <p className="sub">30초면 가입이 끝나요 — 구매자로도, 판매자로도 바로 활동 가능</p>
         <form onSubmit={onSubmit}>
           <div className="field">
-            <label>이름</label>
+            <label>이름 / 닉네임</label>
             <input value={name} onChange={(e) => setName(e.target.value)} required placeholder="홍길동" />
           </div>
           <div className="field">
             <label>이메일</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@company.com" />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@email.com" />
           </div>
           <div className="field">
             <label>비밀번호</label>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="6자 이상" />
           </div>
           {error && <p className="error-text">{error}</p>}
-          <button className="btn btn-primary" type="submit" disabled={loading} style={{ marginTop: 6 }}>
+          <button className="btn btn-primary btn-block" type="submit" disabled={loading} style={{ marginTop: 6 }}>
             {loading ? '가입 중…' : '가입하고 시작하기'}
           </button>
         </form>
