@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/authServer';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 
 const MAX_SIZE = 8 * 1024 * 1024; // 8MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif'];
@@ -26,12 +25,10 @@ export async function POST(req) {
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
-  const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-  await mkdir(uploadsDir, { recursive: true });
+  const result = await uploadToCloudinary(buffer, 'gonggu-on/products');
+  if (result.error) {
+    return NextResponse.json({ error: result.error }, { status: 500 });
+  }
 
-  const safeName = (file.name || 'photo').replace(/[^a-zA-Z0-9._-]/g, '_');
-  const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeName}`;
-  await writeFile(path.join(uploadsDir, uniqueName), buffer);
-
-  return NextResponse.json({ url: `/uploads/${uniqueName}` });
+  return NextResponse.json({ url: result.url });
 }

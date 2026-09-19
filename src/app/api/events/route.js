@@ -3,16 +3,27 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
 import { EVENT_REFERRER_BONUS, EVENT_REFEREE_BONUS } from '@/lib/referral';
 
-export async function GET() {
+export async function GET(req) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
+  const { searchParams } = new URL(req.url);
+  const q = searchParams.get('q')?.trim();
+  const sort = searchParams.get('sort') || 'new';
+
+  const orderBy =
+    sort === 'deadline' ? { deadline: 'asc' } :
+    sort === 'popular' ? { orders: { _count: 'desc' } } :
+    { createdAt: 'desc' };
+
   const events = await prisma.event.findMany({
-    orderBy: { createdAt: 'desc' },
+    where: q ? { title: { contains: q, mode: 'insensitive' } } : undefined,
+    orderBy,
     include: {
       host: { select: { id: true, name: true } },
       options: true,
       discountTiers: true,
+      _count: { select: { orders: true } },
     },
   });
 

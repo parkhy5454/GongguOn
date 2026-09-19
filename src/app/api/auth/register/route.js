@@ -4,12 +4,15 @@ import { hashPassword, signToken, COOKIE_NAME } from '@/lib/auth';
 import { generateUniqueReferralCode } from '@/lib/referral';
 
 export async function POST(req) {
-  const { email, password, name, phone, ref } = await req.json();
+  const { email, password, name, phone, ref, agreed } = await req.json();
   if (!email || !password || !name) {
     return NextResponse.json({ error: '이름, 이메일, 비밀번호를 모두 입력해주세요.' }, { status: 400 });
   }
   if (!phone || !phone.trim()) {
     return NextResponse.json({ error: '휴대폰 번호를 입력해주세요.' }, { status: 400 });
+  }
+  if (!agreed) {
+    return NextResponse.json({ error: '이용약관 및 개인정보처리방침에 동의해주세요.' }, { status: 400 });
   }
   if (password.length < 6) {
     return NextResponse.json({ error: '비밀번호는 6자 이상이어야 합니다.' }, { status: 400 });
@@ -35,6 +38,7 @@ export async function POST(req) {
       passwordHash,
       referralCode,
       referredById: referrer ? referrer.id : null,
+      agreedAt: new Date(),
       // 포인트는 가입 시점이 아니라, 첫 구매 확정 또는 첫 공구 개설 시점에 양쪽에 지급됩니다.
     },
   });

@@ -14,6 +14,7 @@ model User {
   name         String
   phone        String?
   defaultAddress String?
+  agreedAt     DateTime?
   passwordHash String
   createdAt    DateTime @default(now())
 
@@ -59,6 +60,7 @@ model Event {
   status      EventStatus    @default(OPEN)
   deliveryStatus DeliveryStatus @default(PREPARING)
   aiAutoReply Boolean  @default(false)
+  deadlineReminderSent Boolean @default(false)
   createdAt   DateTime @default(now())
 
   hostId      String
@@ -135,6 +137,10 @@ model Order {
   pointsUsed     Int           @default(0)
   shippingAddress String?
   depositorName  String?
+  paymentMethod  String        @default("BANK_TRANSFER")
+  tossPaymentKey String?
+  trackingCompany String?
+  trackingNumber String?
   paymentStatus  PaymentStatus @default(PENDING)
   createdAt      DateTime      @default(now())
 }
@@ -146,6 +152,7 @@ model EventMessage {
   authorId  String
   author    User     @relation(fields: [authorId], references: [id])
   content   String
+  imageUrl  String?
   createdAt DateTime @default(now())
 }
 

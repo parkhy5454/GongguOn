@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { io } from 'socket.io-client';
 
@@ -16,6 +16,7 @@ function formatDT(iso) {
 
 export default function EventDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -26,12 +27,15 @@ export default function EventDetailPage() {
   const [useMyPoints, setUseMyPoints] = useState(false);
   const [myPointBalance, setMyPointBalance] = useState(0);
   const [shippingAddress, setShippingAddress] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('CARD');
 
   const [depositorName, setDepositorName] = useState('');
   const [paying, setPaying] = useState(false);
 
   const [messages, setMessages] = useState([]);
   const [chatText, setChatText] = useState('');
+  const [chatImage, setChatImage] = useState(null); // { url, uploading }
+  const chatFileInputRef = useRef(null);
   const socketRef = useRef(null);
   const chatBottomRef = useRef(null);
 
@@ -48,6 +52,21 @@ export default function EventDetailPage() {
 
   const [reminding, setReminding] = useState(false);
   const [remindMsg, setRemindMsg] = useState('');
+  const [trackingInputs, setTrackingInputs] = useState({}); // orderId -> {company, number}
+
+  function setTracking(orderId, field, value) {
+    setTrackingInputs((prev) => ({ ...prev, [orderId]: { ...prev[orderId], [field]: value } }));
+  }
+
+  async function saveTracking(orderId) {
+    const t = trackingInputs[orderId] || {};
+    const res = await fetch(`/api/orders/${orderId}/tracking`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trackingCompany: t.company, trackingNumber: t.number }),
+    });
+    if (res.ok) await loadEvent();
+  }
 
   async function loadEvent() {
     const res = await fetch(`/api/events/${id}`);
@@ -103,14 +122,20 @@ export default function EventDetailPage() {
     const res = await fetch(`/api/events/${id}/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ optionId: selectedOption, quantity: qty, usePoints: useMyPoints, shippingAddress }),
+      body: JSON.stringify({ optionId: selectedOption, quantity: qty, usePoints: useMyPoints, shippingAddress, paymentMethod }),
     });
     const d = await res.json();
-    setJoining(false);
     if (!res.ok) {
+      setJoining(false);
       setError(d.error || '참여에 실패했습니다.');
       return;
     }
+    if (paymentMethod === 'CARD') {
+      // 토스 결제창으로 이동 (계좌이체는 바로 완료, 카드는 결제창을 거쳐야 함)
+      router.push(`/checkout/${d.order.id}`);
+      return;
+    }
+    setJoining(false);
     setUseMyPoints(false);
     await loadEvent();
   }
@@ -151,15 +176,33 @@ export default function EventDetailPage() {
     if (res.ok) await loadEvent();
   }
 
+  async function handleChatImage(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setChatImage({ url: null, uploading: true });
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (res.ok) {
+      setChatImage({ url: data.url, uploading: false });
+    } else {
+      setChatImage(null);
+    }
+    if (chatFileInputRef.current) chatFileInputRef.current.value = '';
+  }
+
   async function sendChat(e) {
     e.preventDefault();
-    if (!chatText.trim()) return;
+    if (!chatText.trim() && !chatImage?.url) return;
+    if (chatImage?.uploading) return;
     await fetch(`/api/events/${id}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: chatText.trim() }),
+      body: JSON.stringify({ content: chatText.trim(), imageUrl: chatImage?.url || null }),
     });
     setChatText('');
+    setChatImage(null);
   }
 
   async function submitReview(e) {
@@ -330,6 +373,19 @@ export default function EventDetailPage() {
                         placeholder="예: 서울시 강남구 테헤란로 123, 101동 1001호"
                       />
                     </div>
+                    <div className="field" style={{ marginBottom: 10 }}>
+                      <label>결제 수단</label>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
+                          <input type="radio" name="pm" checked={paymentMethod === 'CARD'} onChange={() => setPaymentMethod('CARD')} style={{ width: 'auto' }} />
+                          💳 카드 결제 (즉시 결제)
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
+                          <input type="radio" name="pm" checked={paymentMethod === 'BANK_TRANSFER'} onChange={() => setPaymentMethod('BANK_TRANSFER')} style={{ width: 'auto' }} />
+                          🏦 계좌이체 (직접 입금)
+                        </label>
+                      </div>
+                    </div>
                     {myPointBalance > 0 && (
                       <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 10 }}>
                         <input
@@ -346,7 +402,7 @@ export default function EventDetailPage() {
                     </div>
                     {error && <p className="error-text">{error}</p>}
                     <button className="btn btn-primary btn-block" type="submit" disabled={joining || remaining < 1}>
-                      {remaining < 1 ? '품절' : joining ? '참여 중…' : '공구 참여하기'}
+                      {remaining < 1 ? '품절' : joining ? '처리 중…' : paymentMethod === 'CARD' ? '카드로 결제하기' : '계좌이체로 참여하기'}
                     </button>
                   </form>
                 )}
@@ -366,7 +422,7 @@ export default function EventDetailPage() {
                         📦 배송지: {myOrder.shippingAddress}
                       </div>
                     )}
-                    {myOrder.paymentStatus === 'PENDING' && (
+                    {myOrder.paymentStatus === 'PENDING' && myOrder.paymentMethod === 'BANK_TRANSFER' && (
                       <form onSubmit={markPaid} style={{ display: 'flex', gap: 6 }}>
                         <input
                           placeholder="입금자명"
@@ -379,9 +435,19 @@ export default function EventDetailPage() {
                         </button>
                       </form>
                     )}
+                    {myOrder.paymentStatus === 'PENDING' && myOrder.paymentMethod === 'CARD' && (
+                      <button className="btn btn-primary btn-sm" onClick={() => router.push(`/checkout/${myOrder.id}`)}>
+                        💳 결제 이어서 하기
+                      </button>
+                    )}
                     {myOrder.paymentStatus === 'PAID' && (
                       <p style={{ fontSize: 12.5, color: 'var(--text-dim)', margin: 0 }}>
                         입금자명 "{myOrder.depositorName}" — 판매자 확인을 기다리는 중이에요.
+                      </p>
+                    )}
+                    {myOrder.trackingNumber && (
+                      <p style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 6 }}>
+                        🚚 {myOrder.trackingCompany} {myOrder.trackingNumber}
                       </p>
                     )}
                   </div>
@@ -448,8 +514,26 @@ export default function EventDetailPage() {
                 <div key={o.id} className="order-row" style={{ flexWrap: 'wrap' }}>
                   <span style={{ flex: 1, minWidth: 200 }}>
                     {o.buyer.name} · {o.option.name} × {o.quantity}개 · {o.amount.toLocaleString()}원
+                    {' · '}{o.paymentMethod === 'CARD' ? '💳 카드' : '🏦 계좌이체'}
                     {o.shippingAddress && (
                       <div style={{ fontSize: 11.5, color: 'var(--text-dim)', marginTop: 2 }}>📦 {o.shippingAddress}</div>
+                    )}
+                    {o.paymentStatus === 'CONFIRMED' && (
+                      <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                        <input
+                          placeholder="택배사"
+                          defaultValue={o.trackingCompany || ''}
+                          onChange={(e) => setTracking(o.id, 'company', e.target.value)}
+                          style={{ maxWidth: 90, fontSize: 11.5, padding: '4px 6px' }}
+                        />
+                        <input
+                          placeholder="송장번호"
+                          defaultValue={o.trackingNumber || ''}
+                          onChange={(e) => setTracking(o.id, 'number', e.target.value)}
+                          style={{ maxWidth: 130, fontSize: 11.5, padding: '4px 6px' }}
+                        />
+                        <button className="mini-btn" onClick={() => saveTracking(o.id)}>저장</button>
+                      </div>
                     )}
                   </span>
                   <span className={`status-pill status-${o.paymentStatus}`}>{PAY_LABEL[o.paymentStatus]}</span>
@@ -505,11 +589,43 @@ export default function EventDetailPage() {
                 <span className="who">{m.author.name}</span>
                 {m.content}
                 <span className="time">{formatDT(m.createdAt)}</span>
+                {m.imageUrl && (
+                  <div style={{ marginTop: 4 }}>
+                    <img src={m.imageUrl} alt="" style={{ maxWidth: 180, borderRadius: 8, border: '1px solid var(--border)' }} />
+                  </div>
+                )}
               </div>
             ))}
             <div ref={chatBottomRef} />
           </div>
+          {chatImage && (
+            <div style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 8, borderTop: '1px solid var(--border)' }}>
+              {chatImage.uploading ? (
+                <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>이미지 업로드 중…</span>
+              ) : (
+                <>
+                  <img src={chatImage.url} alt="" style={{ height: 40, borderRadius: 6 }} />
+                  <button type="button" className="mini-btn" onClick={() => setChatImage(null)}>✕ 제거</button>
+                </>
+              )}
+            </div>
+          )}
           <form className="chat-input" onSubmit={sendChat}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => chatFileInputRef.current?.click()}
+              title="이미지 첨부"
+            >
+              📷
+            </button>
+            <input
+              ref={chatFileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleChatImage}
+            />
             <textarea
               value={chatText}
               onChange={(e) => setChatText(e.target.value)}

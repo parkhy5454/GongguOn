@@ -1,15 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/authServer';
-import { readFile } from 'fs/promises';
-import path from 'path';
-
-const MEDIA_TYPES = {
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.png': 'image/png',
-  '.webp': 'image/webp',
-  '.gif': 'image/gif',
-};
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
@@ -25,23 +15,20 @@ export async function POST(req) {
   }
 
   const { imageUrl } = await req.json();
-  if (!imageUrl || !imageUrl.startsWith('/uploads/')) {
+  if (!imageUrl || !imageUrl.startsWith('http')) {
     return NextResponse.json({ error: '유효한 이미지가 아니에요.' }, { status: 400 });
   }
 
-  const ext = path.extname(imageUrl).toLowerCase();
-  const mediaType = MEDIA_TYPES[ext];
-  if (!mediaType) {
-    return NextResponse.json({ error: '지원하지 않는 이미지 형식이에요.' }, { status: 400 });
-  }
-
   let base64;
+  let mediaType = 'image/jpeg';
   try {
-    const filePath = path.join(process.cwd(), 'public', imageUrl);
-    const buffer = await readFile(filePath);
-    base64 = buffer.toString('base64');
+    const imgRes = await fetch(imageUrl);
+    if (!imgRes.ok) throw new Error('fetch failed');
+    mediaType = imgRes.headers.get('content-type') || mediaType;
+    const buf = Buffer.from(await imgRes.arrayBuffer());
+    base64 = buf.toString('base64');
   } catch (err) {
-    return NextResponse.json({ error: '이미지를 읽는 데 실패했어요.' }, { status: 500 });
+    return NextResponse.json({ error: '이미지를 불러오는 데 실패했어요.' }, { status: 500 });
   }
 
   try {
@@ -67,12 +54,10 @@ export async function POST(req) {
         }),
       }
     );
-
     if (!res.ok) {
       const errText = await res.text();
       return NextResponse.json({ error: `AI 호출에 실패했어요: ${errText.slice(0, 200)}` }, { status: 500 });
     }
-
     const data = await res.json();
     const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     let parsed;
@@ -81,7 +66,6 @@ export async function POST(req) {
     } catch {
       return NextResponse.json({ error: 'AI 응답을 해석하지 못했어요. 다시 시도해주세요.' }, { status: 500 });
     }
-
     return NextResponse.json({ title: parsed.title || '', description: parsed.description || '' });
   } catch (err) {
     return NextResponse.json({ error: 'AI 호출 중 오류가 발생했어요.' }, { status: 500 });

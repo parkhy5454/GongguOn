@@ -20,14 +20,21 @@ function formatDeadline(iso) {
 export default function EventsPage() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState('');
+  const [sort, setSort] = useState('new');
 
   useEffect(() => {
-    (async () => {
-      const res = await fetch('/api/events');
+    setLoading(true);
+    const timer = setTimeout(async () => {
+      const params = new URLSearchParams();
+      if (q.trim()) params.set('q', q.trim());
+      params.set('sort', sort);
+      const res = await fetch(`/api/events?${params.toString()}`);
       if (res.ok) setEvents((await res.json()).events);
       setLoading(false);
-    })();
-  }, []);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [q, sort]);
 
   return (
     <>
@@ -37,6 +44,20 @@ export default function EventsPage() {
           <p>지금 열려있는 공동구매를 확인하고 참여해보세요</p>
         </div>
         <Link href="/events/new" className="btn btn-primary">+ 공구 열기</Link>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="🔍 공구 제목 검색"
+          style={{ maxWidth: 260 }}
+        />
+        <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ maxWidth: 160 }}>
+          <option value="new">최신순</option>
+          <option value="deadline">마감임박순</option>
+          <option value="popular">인기순</option>
+        </select>
       </div>
 
       {loading && <div className="empty-state">불러오는 중…</div>}
