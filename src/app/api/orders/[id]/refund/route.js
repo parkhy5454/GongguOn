@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
 import { cancelTossPayment } from '@/lib/toss';
-import { notify } from '@/lib/notify';
+import { finalizeOrderRefunded } from '@/lib/paymentReconcile';
 
 export async function POST(req, { params }) {
   const user = await getCurrentUser();
@@ -28,29 +28,7 @@ export async function POST(req, { params }) {
     }
   }
 
-  await prisma.$transaction([
-    prisma.order.update({
-      where: { id: params.id },
-      data: { paymentStatus: 'REFUNDED', refundedAt: new Date(), refundReason: cancelReason },
-    }),
-    prisma.eventOption.update({
-      where: { id: order.optionId },
-      data: { soldCount: { decrement: order.quantity } },
-    }),
-    ...(order.pointsUsed > 0
-      ? [prisma.user.update({ where: { id: order.buyerId }, data: { pointBalance: { increment: order.pointsUsed } } })]
-      : []),
-  ]);
-
-  await notify(order.buyerId, {
-    type: 'refunded',
-    title: '환불이 처리됐어요',
-    body: `"${order.event.title}" 주문이 환불됐어요. 사유: ${cancelReason}`,
-    url: `/events/${order.eventId}`,
-  });
-
-  const io = global.__io;
-  if (io) io.to(`event:${order.eventId}`).emit('order-updated', { id: order.id, eventId: order.eventId });
+  await finalizeOrderRefunded(params.id, cancelReason);
 
   return NextResponse.json({ ok: true });
 }
