@@ -5,18 +5,32 @@ import Link from 'next/link';
 
 const STATUS_LABEL = { OPEN: '진행중', CLOSED: '마감', CANCELLED: '취소됨', COMPLETED: '완료' };
 const STATUS_CLASS = { OPEN: 'badge-open', CLOSED: 'badge-closed', CANCELLED: 'badge-cancelled', COMPLETED: 'badge-completed' };
-const PAY_LABEL = { PENDING: '입금 대기', PAID: '입금 확인 요청', CONFIRMED: '입금 확인됨' };
+const PAY_LABEL = { PENDING: '입금 대기', PAID: '입금 확인 요청', CONFIRMED: '결제 완료', REFUNDED: '환불됨' };
+
+function formatDT(iso) {
+  return new Date(iso).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
 
 export default function MyPage() {
   const [me, setMe] = useState(null);
   const [events, setEvents] = useState([]);
+  const [myOrders, setMyOrders] = useState([]);
+  const [favorites, setFavorites] = useState([]);
+  const [tab, setTab] = useState('orders');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const [meRes, evRes] = await Promise.all([fetch('/api/me'), fetch('/api/events')]);
+      const [meRes, evRes, orderRes, favRes] = await Promise.all([
+        fetch('/api/me'),
+        fetch('/api/events'),
+        fetch('/api/my/orders'),
+        fetch('/api/my/favorites'),
+      ]);
       if (meRes.ok) setMe((await meRes.json()).user);
       if (evRes.ok) setEvents((await evRes.json()).events);
+      if (orderRes.ok) setMyOrders((await orderRes.json()).orders);
+      if (favRes.ok) setFavorites((await favRes.json()).favorites);
       setLoading(false);
     })();
   }, []);
@@ -47,27 +61,67 @@ export default function MyPage() {
         </div>
       </div>
 
-      <h3 style={{ fontSize: 15 }}>내가 개설한 공구</h3>
-      {hosted.length === 0 && <div className="empty-state">아직 개설한 공구가 없어요.</div>}
-      <div className="grid-cards" style={{ marginBottom: 28 }}>
-        {hosted.map((ev) => {
-          const totalSold = ev.options.reduce((s, o) => s + o.soldCount, 0);
-          return (
-            <Link key={ev.id} href={`/events/${ev.id}`} className="card event-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <h3>{ev.title}</h3>
-                <span className={`badge ${STATUS_CLASS[ev.status]}`}>{STATUS_LABEL[ev.status]}</span>
-              </div>
-              <div className="meta-row"><span>누적 판매 {totalSold}개</span></div>
-            </Link>
-          );
-        })}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+        <button className={`btn btn-sm ${tab === 'orders' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setTab('orders')}>
+          참여한 공구 ({myOrders.length})
+        </button>
+        <button className={`btn btn-sm ${tab === 'hosted' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setTab('hosted')}>
+          개설한 공구 ({hosted.length})
+        </button>
+        <button className={`btn btn-sm ${tab === 'favorites' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setTab('favorites')}>
+          찜한 공구 ({favorites.length})
+        </button>
       </div>
 
-      <p style={{ fontSize: 13, color: 'var(--text-dim)' }}>
-        참여한 공구의 결제 상태는 각 공구 상세 페이지에서 확인/관리할 수 있어요. 아래 "공동구매"에서 참여했던 공구를 찾아 들어가보세요.
-      </p>
-      <Link href="/events" className="btn btn-ghost" style={{ marginTop: 8 }}>공동구매로 이동</Link>
+      {tab === 'orders' && (
+        <div className="card">
+          {myOrders.length === 0 && <div className="empty-state">아직 참여한 공구가 없어요.</div>}
+          {myOrders.map((o) => (
+            <Link key={o.id} href={`/events/${o.event.id}`} className="order-row" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <span style={{ flex: 1 }}>
+                {o.event.title} · {o.option.name} × {o.quantity}개 · {o.amount.toLocaleString()}원
+                <div style={{ fontSize: 11.5, color: 'var(--text-dim)' }}>{formatDT(o.createdAt)}</div>
+              </span>
+              <span className={`status-pill status-${o.paymentStatus}`}>{PAY_LABEL[o.paymentStatus]}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {tab === 'hosted' && (
+        <div className="grid-cards">
+          {hosted.length === 0 && <div className="empty-state">아직 개설한 공구가 없어요.</div>}
+          {hosted.map((ev) => {
+            const totalSold = ev.options.reduce((s, o) => s + o.soldCount, 0);
+            return (
+              <Link key={ev.id} href={`/events/${ev.id}`} className="card event-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <h3>{ev.title}</h3>
+                  <span className={`badge ${STATUS_CLASS[ev.status]}`}>{STATUS_LABEL[ev.status]}</span>
+                </div>
+                <div className="meta-row"><span>누적 판매 {totalSold}개</span></div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {tab === 'favorites' && (
+        <div className="grid-cards">
+          {favorites.length === 0 && <div className="empty-state">아직 찜한 공구가 없어요. 공구 상세페이지의 ♡ 버튼을 눌러보세요.</div>}
+          {favorites.map((f) => (
+            <Link key={f.event.id} href={`/events/${f.event.id}`} className="card event-card">
+              {f.event.images?.[0] && (
+                <img src={f.event.images[0]} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 8 }} />
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <h3>{f.event.title}</h3>
+                <span className={`badge ${STATUS_CLASS[f.event.status]}`}>{STATUS_LABEL[f.event.status]}</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </>
   );
 }

@@ -37,9 +37,17 @@ export async function POST(req, { params }) {
       if (!option || option.eventId !== params.id) {
         throw new Error('옵션을 찾을 수 없습니다.');
       }
-      const remaining = option.stock - option.soldCount;
-      if (remaining < qty) {
-        throw new Error(`재고가 부족해요 (남은 수량: ${remaining}개).`);
+
+      // 동시 요청에서도 재고가 초과 판매되지 않도록, "그 시점의 재고가 충분할 때만" 원자적으로 증가시킴
+      const updateResult = await tx.$executeRaw`
+        UPDATE "EventOption"
+        SET "soldCount" = "soldCount" + ${qty}
+        WHERE "id" = ${optionId} AND "stock" >= "soldCount" + ${qty}
+      `;
+      if (updateResult === 0) {
+        const fresh = await tx.eventOption.findUnique({ where: { id: optionId } });
+        const remaining = fresh ? fresh.stock - fresh.soldCount : 0;
+        throw new Error(`재고가 부족해요 (남은 수량: ${Math.max(0, remaining)}개).`);
       }
 
       // 참여 인원 연동 동적 할인: 지금 참여하면 몇 번째 참여자가 되는지로 계산
@@ -55,11 +63,6 @@ export async function POST(req, { params }) {
       if (usePoints) {
         pointsToUse = Math.min(buyer.pointBalance, rawAmount);
       }
-
-      await tx.eventOption.update({
-        where: { id: optionId },
-        data: { soldCount: { increment: qty } },
-      });
 
       if (pointsToUse > 0) {
         await tx.user.update({

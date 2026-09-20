@@ -51,6 +51,10 @@ export async function GET(req, { params }) {
   const currentDiscount = applicableDiscount(event.discountTiers, currentParticipants);
   const nextTier = event.discountTiers.find((t) => t.minParticipants > currentParticipants) || null;
 
+  const favorite = await prisma.favorite.findUnique({
+    where: { userId_eventId: { userId: user.id, eventId: params.id } },
+  });
+
   return NextResponse.json({
     event,
     hostRating: { avg: ratingAgg._avg.rating, count: ratingAgg._count.rating },
@@ -61,5 +65,6 @@ export async function GET(req, { params }) {
     currentParticipants,
     currentDiscount,
     nextTier,
+    isFavorited: !!favorite,
   });
 }

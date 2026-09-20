@@ -31,10 +31,18 @@ export async function GET(req, { params }) {
     take: 20,
   });
 
+  const followerCount = await prisma.follow.count({ where: { sellerId: params.id } });
+  const myFollow = await prisma.follow.findUnique({
+    where: { followerId_sellerId: { followerId: user.id, sellerId: params.id } },
+  });
+
   return NextResponse.json({
     seller,
     events,
     rating: { avg: ratingAgg._avg.rating, count: ratingAgg._count.rating },
     reviews,
+    followerCount,
+    isFollowing: !!myFollow,
+    isMe: user.id === params.id,
   });
 }

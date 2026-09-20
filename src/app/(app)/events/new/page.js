@@ -95,6 +95,29 @@ export default function NewEventPage() {
     setOptions((prev) => prev.filter((_, i) => i !== idx));
   }
 
+  const optionImageInputRef = useRef(null);
+  const [optionImageTargetIdx, setOptionImageTargetIdx] = useState(null);
+  const [optionImageUploading, setOptionImageUploading] = useState(null);
+
+  function triggerOptionImageUpload(idx) {
+    setOptionImageTargetIdx(idx);
+    optionImageInputRef.current?.click();
+  }
+
+  async function handleOptionImageChange(e) {
+    const file = e.target.files?.[0];
+    const idx = optionImageTargetIdx;
+    if (!file || idx === null) return;
+    setOptionImageUploading(idx);
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (res.ok) updateOption(idx, 'imageUrl', data.url);
+    setOptionImageUploading(null);
+    if (optionImageInputRef.current) optionImageInputRef.current.value = '';
+  }
+
   function updateTier(idx, field, value) {
     setDiscountTiers((prev) => prev.map((t, i) => (i === idx ? { ...t, [field]: value } : t)));
   }
@@ -121,7 +144,7 @@ export default function NewEventPage() {
       body: JSON.stringify({
         title, description, deadline, minQuantity, category,
         images: images.filter((img) => img.url).map((img) => img.url),
-        options: options.map((o) => ({ name: o.name, price: o.price, stock: o.stock })),
+        options: options.map((o) => ({ name: o.name, price: o.price, stock: o.stock, imageUrl: o.imageUrl })),
         discountTiers: discountTiers.filter((t) => t.minParticipants && t.discountPercent),
         aiAutoReply,
       }),
@@ -241,9 +264,28 @@ export default function NewEventPage() {
           </div>
 
           <div className="field">
-            <label>옵션 (이름 / 가격 / 수량)</label>
+            <label>옵션 (이름 / 가격 / 수량 / 사진)</label>
+            <input
+              ref={optionImageInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleOptionImageChange}
+            />
             {options.map((o, idx) => (
-              <div key={idx} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+              <div key={idx} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => triggerOptionImageUpload(idx)}
+                  style={{
+                    width: 34, height: 34, flexShrink: 0, borderRadius: 6, border: '1px solid var(--border)',
+                    background: o.imageUrl ? `url(${o.imageUrl}) center/cover` : 'var(--bg-input)',
+                    fontSize: 13, color: 'var(--text-dim)',
+                  }}
+                  title="옵션 사진"
+                >
+                  {optionImageUploading === idx ? '⏳' : !o.imageUrl ? '📷' : ''}
+                </button>
                 <input placeholder="옵션명 (예: 빨강/M)" value={o.name} onChange={(e) => updateOption(idx, 'name', e.target.value)} />
                 <input type="number" placeholder="가격" value={o.price} onChange={(e) => updateOption(idx, 'price', e.target.value)} style={{ maxWidth: 110 }} />
                 <input type="number" placeholder="수량" value={o.stock} onChange={(e) => updateOption(idx, 'stock', e.target.value)} style={{ maxWidth: 90 }} />

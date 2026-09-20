@@ -120,6 +120,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 .status-PENDING { background: #fde3df; color: var(--danger); }
 .status-PAID { background: #fff4d9; color: #a8690a; }
 .status-CONFIRMED { background: var(--success-soft); color: var(--success); }
+.status-REFUNDED { background: #f0ece6; color: var(--text-dim); }
 
 .empty-state { color: var(--text-dim); font-size: 13.5px; text-align: center; padding: 40px 20px; }
 

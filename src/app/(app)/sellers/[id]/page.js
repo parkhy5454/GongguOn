@@ -23,14 +23,30 @@ export default function SellerStorefrontPage() {
   if (loading) return <div className="empty-state">불러오는 중…</div>;
   if (!data) return <div className="empty-state">판매자를 찾을 수 없어요.</div>;
 
-  const { seller, events, rating, reviews } = data;
+  const { seller, events, rating, reviews, followerCount, isFollowing, isMe } = data;
+
+  async function toggleFollow() {
+    const res = await fetch(`/api/sellers/${id}/follow`, { method: 'POST' });
+    if (res.ok) {
+      const d = await res.json();
+      setData((prev) => ({ ...prev, isFollowing: d.following, followerCount: prev.followerCount + (d.following ? 1 : -1) }));
+    }
+  }
 
   return (
     <>
       <div className="page-header">
         <div>
           <h1>{seller.name}님의 상점</h1>
-          <p>{rating.avg ? `⭐ ${rating.avg.toFixed(1)} (후기 ${rating.count}건)` : '아직 받은 후기가 없어요'} · 개설한 공구 {events.length}건</p>
+          <p>
+            {rating.avg ? `⭐ ${rating.avg.toFixed(1)} (후기 ${rating.count}건)` : '아직 받은 후기가 없어요'}
+            {' · 개설한 공구 '}{events.length}건{' · 팔로워 '}{followerCount}명
+          </p>
+          {!isMe && (
+            <button className={`btn btn-sm ${isFollowing ? 'btn-primary' : 'btn-ghost'}`} onClick={toggleFollow} style={{ marginTop: 6 }}>
+              {isFollowing ? '✓ 팔로잉' : '+ 팔로우'}
+            </button>
+          )}
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
 import { EVENT_REFERRER_BONUS, EVENT_REFEREE_BONUS } from '@/lib/referral';
+import { notify } from '@/lib/notify';
 
 export async function GET(req) {
   const user = await getCurrentUser();
@@ -93,6 +94,7 @@ export async function POST(req) {
           name: o.name.trim(),
           price: Number(o.price),
           stock: Number(o.stock),
+          imageUrl: o.imageUrl || null,
         })),
       },
       discountTiers: { create: validTiers },
@@ -116,6 +118,16 @@ export async function POST(req) {
         }),
       ]);
     }
+  }
+
+  const followers = await prisma.follow.findMany({ where: { sellerId: user.id }, select: { followerId: true } });
+  for (const f of followers) {
+    await notify(f.followerId, {
+      type: 'new_event_from_followed_seller',
+      title: '팔로우한 판매자가 새 공구를 열었어요',
+      body: `${user.name}님이 "${event.title}"를 열었어요.`,
+      url: `/events/${event.id}`,
+    });
   }
 
   return NextResponse.json({ event });

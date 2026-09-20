@@ -6,6 +6,7 @@ import Link from 'next/link';
 const TABS = [
   { key: 'users', label: '회원' },
   { key: 'events', label: '공구 현황' },
+  { key: 'settlements', label: '정산' },
   { key: 'reports', label: '신고 내역' },
   { key: 'feedback', label: '문의사항' },
 ];
@@ -24,7 +25,26 @@ export default function AdminDashboard() {
   const [events, setEvents] = useState(null);
   const [reports, setReports] = useState(null);
   const [feedbacks, setFeedbacks] = useState(null);
+  const [settlements, setSettlements] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [payingId, setPayingId] = useState(null);
+
+  async function loadSettlements() {
+    const res = await fetch('/api/admin/settlements');
+    if (res.ok) setSettlements(await res.json());
+  }
+
+  async function paySettlement(sellerId) {
+    if (!confirm('이 판매자에게 정산금을 지급 처리하시겠어요? (실제 송금은 별도로 진행하시고, 여긴 기록용입니다)')) return;
+    setPayingId(sellerId);
+    const res = await fetch('/api/admin/settlements/pay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sellerId }),
+    });
+    setPayingId(null);
+    if (res.ok) await loadSettlements();
+  }
 
   useEffect(() => {
     (async () => {
@@ -38,6 +58,7 @@ export default function AdminDashboard() {
       if (eRes.ok) setEvents((await eRes.json()).events);
       if (rRes.ok) setReports((await rRes.json()).reports);
       if (fRes.ok) setFeedbacks((await fRes.json()).feedbacks);
+      await loadSettlements();
       setLoading(false);
     })();
   }, []);
@@ -61,6 +82,7 @@ export default function AdminDashboard() {
             {t.label}
             {t.key === 'users' && users ? ` (${users.length})` : ''}
             {t.key === 'events' && events ? ` (${events.length})` : ''}
+            {t.key === 'settlements' && settlements?.sellers ? ` (${settlements.sellers.length})` : ''}
             {t.key === 'reports' && reports ? ` (${reports.length})` : ''}
             {t.key === 'feedback' && feedbacks ? ` (${feedbacks.length})` : ''}
           </button>
@@ -137,6 +159,38 @@ export default function AdminDashboard() {
           </table>
           {events?.length === 0 && <div className="empty-state">개설된 공구가 없어요.</div>}
         </div>
+      )}
+
+      {!loading && tab === 'settlements' && (
+        <>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12.5, color: 'var(--text-dim)' }}>이미 정산 완료된 금액</div>
+            <div style={{ fontSize: 20, fontWeight: 800 }}>{(settlements?.settledTotal || 0).toLocaleString()}원 ({settlements?.settledCount || 0}건)</div>
+          </div>
+          <div className="card">
+            <h3 style={{ marginTop: 0, fontSize: 14.5 }}>판매자별 미정산 금액</h3>
+            <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: -6 }}>
+              카드결제는 결제대행사(토스)를 거쳐 회사 계좌로 모이는 구조라, 실제 송금은 이 목록을 보고 관리자가 직접 처리해야 해요. "지급 처리"는 장부에 완료 표시만 남깁니다.
+            </p>
+            {(!settlements?.sellers || settlements.sellers.length === 0) && (
+              <div className="empty-state">미정산 건이 없어요.</div>
+            )}
+            {settlements?.sellers?.map((s) => (
+              <div key={s.sellerId} className="order-row" style={{ alignItems: 'flex-start' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700 }}>{s.sellerName} <span style={{ fontWeight: 400, color: 'var(--text-dim)', fontSize: 12 }}>({s.sellerEmail})</span></div>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{s.orderCount}건 · {s.eventTitles.join(', ')}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 800 }}>{s.totalAmount.toLocaleString()}원</div>
+                  <button className="btn btn-primary btn-sm" onClick={() => paySettlement(s.sellerId)} disabled={payingId === s.sellerId} style={{ marginTop: 4 }}>
+                    {payingId === s.sellerId ? '처리 중…' : '지급 처리'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {!loading && tab === 'reports' && (
