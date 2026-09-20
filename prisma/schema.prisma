@@ -46,6 +46,7 @@ model User {
   followers       Follow[] @relation("Followee")
   mutedNotificationTypes String[] @default([])
   emailVerificationTokens EmailVerificationToken[]
+  chatReads       ChatRead[]
 }
 
 enum EventStatus {
@@ -85,6 +86,7 @@ model Event {
   discountTiers DiscountTier[]
   reports     Report[]
   favorites   Favorite[]
+  chatReads   ChatRead[]
 }
 
 model DiscountTier {
@@ -265,4 +267,15 @@ model RateLimitBucket {
   key        String   @id
   count      Int      @default(1)
   windowStart DateTime @default(now())
+}
+
+model ChatRead {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  lastReadAt DateTime @default(now())
+
+  @@unique([userId, eventId])
 }

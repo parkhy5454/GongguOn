@@ -96,13 +96,17 @@ export default function EventDetailPage() {
     (async () => {
       const res = await fetch(`/api/events/${id}/messages`);
       if (res.ok) setMessages((await res.json()).messages);
+      fetch(`/api/events/${id}/read`, { method: 'POST' }).catch(() => {});
     })();
 
     const socket = io({ path: '/socket.io' });
     socketRef.current = socket;
     socket.emit('join-event', id);
 
-    socket.on('new-message', (msg) => setMessages((prev) => [...prev, msg]));
+    socket.on('new-message', (msg) => {
+      setMessages((prev) => [...prev, msg]);
+      fetch(`/api/events/${id}/read`, { method: 'POST' }).catch(() => {});
+    });
     socket.on('order-updated', () => loadEvent());
     socket.on('order-created', () => loadEvent());
     socket.on('event-updated', () => loadEvent());
