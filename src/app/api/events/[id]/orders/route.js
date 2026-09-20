@@ -90,12 +90,15 @@ export async function POST(req, { params }) {
   const io = global.__io;
   if (io) io.to(`event:${params.id}`).emit('order-created', { eventId: params.id });
 
-  await notify(event.hostId, {
-    type: 'new_order',
-    title: '새로운 참여자가 있어요',
-    body: `"${event.title}"에 ${user.name}님이 참여했어요.`,
-    url: `/events/${params.id}`,
-  });
+  // 계좌이체는 참여 즉시 알림, 카드결제는 실제 결제 확정 시점(/api/payments/confirm)에만 알림 (중복 방지)
+  if (method === 'BANK_TRANSFER') {
+    await notify(event.hostId, {
+      type: 'new_order',
+      title: '새로운 참여자가 있어요',
+      body: `"${event.title}"에 ${user.name}님이 참여했어요.`,
+      url: `/events/${params.id}`,
+    });
+  }
 
   return NextResponse.json({ order });
 }

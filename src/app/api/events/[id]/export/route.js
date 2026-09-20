@@ -23,7 +23,7 @@ export async function GET(req, { params }) {
     orderBy: { createdAt: 'asc' },
   });
 
-  const header = ['이름', '이메일', '휴대폰', '배송지', '옵션', '수량', '단가할인율(%)', '결제금액', '포인트사용', '입금자명', '결제상태', '참여일시'];
+  const header = ['이름', '이메일', '휴대폰', '배송지', '옵션', '수량', '단가할인율(%)', '결제금액', '포인트사용', '결제수단', '입금자명', '결제상태', '택배사', '송장번호', '참여일시'];
   const rows = orders.map((o) => [
     o.buyer.name,
     o.buyer.email,
@@ -34,8 +34,11 @@ export async function GET(req, { params }) {
     o.discountPercent,
     o.amount,
     o.pointsUsed,
+    o.paymentMethod === 'CARD' ? '카드결제' : '계좌이체',
     o.depositorName || '',
     o.paymentStatus,
+    o.trackingCompany || '',
+    o.trackingNumber || '',
     new Date(o.createdAt).toLocaleString('ko-KR'),
   ]);
 

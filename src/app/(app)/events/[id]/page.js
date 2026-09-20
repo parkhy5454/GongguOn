@@ -252,6 +252,16 @@ export default function EventDetailPage() {
     setRemindMsg(res.ok ? `${d.sent}명에게 입금 리마인드를 보냈어요.` : d.error || '전송에 실패했습니다.');
   }
 
+  async function cancelPendingCardOrder() {
+    if (!confirm('참여를 취소하시겠어요? 잡아둔 재고와 사용한 포인트가 돌아갑니다.')) return;
+    const res = await fetch('/api/payments/cancel-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: data.myOrder.id }),
+    });
+    if (res.ok) await loadEvent();
+  }
+
   if (loading) return <div className="empty-state">불러오는 중…</div>;
   if (!data) return <div className="empty-state">공구를 찾을 수 없어요.</div>;
 
@@ -437,9 +447,14 @@ export default function EventDetailPage() {
                       </form>
                     )}
                     {myOrder.paymentStatus === 'PENDING' && myOrder.paymentMethod === 'CARD' && (
-                      <button className="btn btn-primary btn-sm" onClick={() => router.push(`/checkout/${myOrder.id}`)}>
-                        💳 결제 이어서 하기
-                      </button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn btn-primary btn-sm" onClick={() => router.push(`/checkout/${myOrder.id}`)}>
+                          💳 결제 이어서 하기
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={cancelPendingCardOrder}>
+                          참여 취소
+                        </button>
+                      </div>
                     )}
                     {myOrder.paymentStatus === 'PAID' && (
                       <p style={{ fontSize: 12.5, color: 'var(--text-dim)', margin: 0 }}>
