@@ -19,7 +19,7 @@ export async function POST(req) {
   const passwordHash = await hashPassword(password);
 
   await prisma.$transaction([
-    prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
+    prisma.user.update({ where: { id: record.userId }, data: { passwordHash, tokenVersion: { increment: 1 } } }),
     prisma.passwordResetToken.update({ where: { id: record.id }, data: { used: true } }),
   ]);
 

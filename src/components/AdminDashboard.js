@@ -22,12 +22,25 @@ function formatDT(iso) {
 export default function AdminDashboard() {
   const [tab, setTab] = useState('users');
   const [users, setUsers] = useState(null);
+  const [userPage, setUserPage] = useState(1);
+  const [userTotalPages, setUserTotalPages] = useState(1);
+  const [userTotalCount, setUserTotalCount] = useState(0);
   const [events, setEvents] = useState(null);
   const [reports, setReports] = useState(null);
   const [feedbacks, setFeedbacks] = useState(null);
   const [settlements, setSettlements] = useState(null);
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState(null);
+
+  async function loadUsers(page) {
+    const res = await fetch(`/api/admin/users?page=${page}`);
+    if (res.ok) {
+      const d = await res.json();
+      setUsers(d.users);
+      setUserTotalPages(d.totalPages || 1);
+      setUserTotalCount(d.totalCount || 0);
+    }
+  }
 
   async function loadSettlements() {
     const res = await fetch('/api/admin/settlements');
@@ -47,14 +60,17 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => {
+    loadUsers(userPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userPage]);
+
+  useEffect(() => {
     (async () => {
-      const [uRes, eRes, rRes, fRes] = await Promise.all([
-        fetch('/api/admin/users'),
+      const [eRes, rRes, fRes] = await Promise.all([
         fetch('/api/admin/events'),
         fetch('/api/admin/reports'),
         fetch('/api/admin/feedback'),
       ]);
-      if (uRes.ok) setUsers((await uRes.json()).users);
       if (eRes.ok) setEvents((await eRes.json()).events);
       if (rRes.ok) setReports((await rRes.json()).reports);
       if (fRes.ok) setFeedbacks((await fRes.json()).feedbacks);
@@ -80,7 +96,7 @@ export default function AdminDashboard() {
             onClick={() => setTab(t.key)}
           >
             {t.label}
-            {t.key === 'users' && users ? ` (${users.length})` : ''}
+            {t.key === 'users' && users ? ` (${userTotalCount})` : ''}
             {t.key === 'events' && events ? ` (${events.length})` : ''}
             {t.key === 'settlements' && settlements?.sellers ? ` (${settlements.sellers.length})` : ''}
             {t.key === 'reports' && reports ? ` (${reports.length})` : ''}
@@ -124,6 +140,13 @@ export default function AdminDashboard() {
             </tbody>
           </table>
           {users?.length === 0 && <div className="empty-state">가입한 회원이 없어요.</div>}
+          {userTotalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 14 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => setUserPage((p) => Math.max(1, p - 1))} disabled={userPage <= 1}>← 이전</button>
+              <span style={{ fontSize: 13, color: 'var(--text-dim)', alignSelf: 'center' }}>{userPage} / {userTotalPages}</span>
+              <button className="btn btn-ghost btn-sm" onClick={() => setUserPage((p) => Math.min(userTotalPages, p + 1))} disabled={userPage >= userTotalPages}>다음 →</button>
+            </div>
+          )}
         </div>
       )}
 

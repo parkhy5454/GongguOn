@@ -26,16 +26,24 @@ export async function GET(req) {
   if (q) where.title = { contains: q, mode: 'insensitive' };
   if (category && category !== 'ALL') where.category = category;
 
-  const events = await prisma.event.findMany({
-    where,
-    orderBy,
-    include: {
-      host: { select: { id: true, name: true } },
-      options: true,
-      discountTiers: true,
-      _count: { select: { orders: true } },
-    },
-  });
+  const page = Math.max(1, Number(searchParams.get('page')) || 1);
+  const pageSize = 24;
+
+  const [events, totalCount] = await Promise.all([
+    prisma.event.findMany({
+      where,
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: {
+        host: { select: { id: true, name: true } },
+        options: true,
+        discountTiers: true,
+        _count: { select: { orders: true } },
+      },
+    }),
+    prisma.event.count({ where }),
+  ]);
 
   // 호스트별 평점 맵 계산
   const hostIds = [...new Set(events.map((e) => e.hostId))];
@@ -52,7 +60,13 @@ export async function GET(req) {
     hostRating: ratingMap[e.hostId] || null,
   }));
 
-  return NextResponse.json({ events: enriched });
+  return NextResponse.json({
+    events: enriched,
+    page,
+    pageSize,
+    totalCount,
+    totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
+  });
 }
 
 export async function POST(req) {

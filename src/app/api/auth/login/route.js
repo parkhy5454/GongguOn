@@ -10,7 +10,7 @@ export async function POST(req) {
   const user = await prisma.user.findUnique({ where: { email } });
 
   // 계정 존재 여부를 노출하지 않기 위해, 없는 계정도 있는 계정과 같은 오류 메시지를 씀
-  if (!user) {
+  if (!user || user.deletedAt) {
     return NextResponse.json({ error: '이메일 또는 비밀번호가 올바르지 않습니다.' }, { status: 400 });
   }
 
@@ -47,7 +47,7 @@ export async function POST(req) {
     await prisma.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null } });
   }
 
-  const token = signToken({ sub: user.id, email: user.email, name: user.name });
+  const token = signToken({ sub: user.id, email: user.email, name: user.name, tv: user.tokenVersion });
   const res = NextResponse.json({ id: user.id, email: user.email, name: user.name });
   res.cookies.set(COOKIE_NAME, token, {
     httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production',

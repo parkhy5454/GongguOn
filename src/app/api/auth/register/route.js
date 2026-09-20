@@ -3,9 +3,16 @@ import { prisma } from '@/lib/prisma';
 import { hashPassword, signToken, COOKIE_NAME } from '@/lib/auth';
 import { generateUniqueReferralCode } from '@/lib/referral';
 import { sendEmail } from '@/lib/email';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import crypto from 'crypto';
 
 export async function POST(req) {
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(`register:${ip}`, { max: 5, windowMs: 60 * 60 * 1000 });
+  if (!rl.allowed) {
+    return NextResponse.json({ error: '너무 많은 가입 시도가 있었어요. 잠시 후 다시 시도해주세요.' }, { status: 429 });
+  }
+
   const { email, password, name, phone, ref, agreed } = await req.json();
   if (!email || !password || !name) {
     return NextResponse.json({ error: '이름, 이메일, 비밀번호를 모두 입력해주세요.' }, { status: 400 });
@@ -75,7 +82,7 @@ export async function POST(req) {
     `,
   }).catch(() => {});
 
-  const token = signToken({ sub: user.id, email: user.email, name: user.name });
+  const token = signToken({ sub: user.id, email: user.email, name: user.name, tv: user.tokenVersion });
   const res = NextResponse.json({ id: user.id, email: user.email, name: user.name });
   res.cookies.set(COOKIE_NAME, token, {
     httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production',

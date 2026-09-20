@@ -1,5 +1,18 @@
 const crypto = require('crypto');
 
+// 파일 헤더(매직 바이트)로 실제 이미지 형식인지 확인 (확장자/mimetype 위조 방지)
+function detectImageType(buffer) {
+  if (buffer.length < 12) return null;
+  const b = buffer;
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png';
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return 'image/gif';
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return 'image/webp';
+  // HEIC/HEIF는 컨테이너 구조상 'ftyp' 박스로 판별
+  if (b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70) return 'image/heic';
+  return null;
+}
+
 function signParams(params, apiSecret) {
   const sorted = Object.keys(params)
     .filter((k) => params[k] !== undefined && params[k] !== null && params[k] !== '')
@@ -44,4 +57,4 @@ async function uploadToCloudinary(buffer, folder = 'gonggu-on') {
   return { url: data.secure_url, publicId: data.public_id };
 }
 
-module.exports = { uploadToCloudinary };
+module.exports = { uploadToCloudinary, detectImageType };

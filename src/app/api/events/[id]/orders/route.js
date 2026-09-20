@@ -29,6 +29,12 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: '배송지 주소를 입력해주세요.' }, { status: 400 });
   }
   const method = paymentMethod === 'CARD' ? 'CARD' : 'BANK_TRANSFER';
+  if (method === 'CARD' && !user.emailVerifiedAt) {
+    return NextResponse.json(
+      { error: '카드 결제는 이메일 인증 후 이용할 수 있어요. 상단 배너에서 인증 메일을 확인해주세요. (계좌이체는 바로 이용 가능해요)' },
+      { status: 403 }
+    );
+  }
 
   let order;
   try {

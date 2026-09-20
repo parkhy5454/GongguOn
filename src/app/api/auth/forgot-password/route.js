@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendEmail } from '@/lib/email';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import crypto from 'crypto';
 
 export async function POST(req) {
@@ -9,10 +10,18 @@ export async function POST(req) {
     return NextResponse.json({ error: '이메일을 입력해주세요.' }, { status: 400 });
   }
 
+  const ip = getClientIp(req);
+  const ipLimit = checkRateLimit(`forgot-pw-ip:${ip}`, { max: 10, windowMs: 60 * 60 * 1000 });
+  const emailLimit = checkRateLimit(`forgot-pw-email:${email}`, { max: 3, windowMs: 60 * 60 * 1000 });
+  if (!ipLimit.allowed || !emailLimit.allowed) {
+    // 특정 이메일로 계속 재설정 메일이 발송되는 괴롭힘/스팸을 막기 위해 조용히 제한 (사용자에겐 평소와 같은 성공 메시지)
+    return NextResponse.json({ ok: true });
+  }
+
   const user = await prisma.user.findUnique({ where: { email } });
 
-  // 가입 여부를 노출하지 않기 위해, 계정이 없어도 항상 같은 성공 메시지를 반환
-  if (user) {
+  // 가입 여부를 노출하지 않기 위해, 계정이 없어도(또는 탈퇴했어도) 항상 같은 성공 메시지를 반환
+  if (user && !user.deletedAt) {
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 1000 * 60 * 30); // 30분 유효
 

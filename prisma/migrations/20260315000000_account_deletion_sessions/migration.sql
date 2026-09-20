@@ -1,0 +1,3 @@
+-- AlterTable: User
+ALTER TABLE "User" ADD COLUMN "deletedAt" TIMESTAMP(3);
+ALTER TABLE "User" ADD COLUMN "tokenVersion" INTEGER NOT NULL DEFAULT 0;

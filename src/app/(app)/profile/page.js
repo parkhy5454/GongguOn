@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { NOTIFICATION_TYPES } from '@/lib/notificationTypes';
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -21,6 +23,46 @@ export default function ProfilePage() {
   const [newPassword2, setNewPassword2] = useState('');
   const [savingPw, setSavingPw] = useState(false);
   const [pwMsg, setPwMsg] = useState('');
+
+  const [loggingOutAll, setLoggingOutAll] = useState(false);
+  const [logoutAllMsg, setLogoutAllMsg] = useState('');
+
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  async function logoutAllDevices() {
+    setLoggingOutAll(true);
+    setLogoutAllMsg('');
+    const res = await fetch('/api/me/logout-all', { method: 'POST' });
+    setLoggingOutAll(false);
+    if (res.ok) {
+      router.push('/login');
+      router.refresh();
+    } else {
+      setLogoutAllMsg('처리에 실패했습니다.');
+    }
+  }
+
+  async function deleteAccount(e) {
+    e.preventDefault();
+    setDeleting(true);
+    setDeleteMsg('');
+    const res = await fetch('/api/me/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: deletePassword }),
+    });
+    const d = await res.json();
+    setDeleting(false);
+    if (!res.ok) {
+      setDeleteMsg(d.error || '탈퇴에 실패했습니다.');
+      return;
+    }
+    router.push('/login');
+    router.refresh();
+  }
 
   useEffect(() => {
     (async () => {
@@ -185,6 +227,45 @@ export default function ProfilePage() {
             {savingPw ? '변경 중…' : '비밀번호 변경'}
           </button>
         </form>
+      </div>
+
+      <div className="card" style={{ maxWidth: 440, marginTop: 20 }}>
+        <h3 style={{ marginTop: 0, fontSize: 14.5 }}>다른 기기에서 로그아웃</h3>
+        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: -6 }}>
+          분실한 기기 등 다른 곳에 남아있는 로그인을 전부 끊고, 이 기기에서도 다시 로그인하게 됩니다.
+        </p>
+        {logoutAllMsg && <p className="error-text">{logoutAllMsg}</p>}
+        <button className="btn btn-ghost" onClick={logoutAllDevices} disabled={loggingOutAll}>
+          {loggingOutAll ? '처리 중…' : '모든 기기에서 로그아웃'}
+        </button>
+      </div>
+
+      <div className="card" style={{ maxWidth: 440, marginTop: 20, borderColor: 'var(--danger)' }}>
+        <h3 style={{ marginTop: 0, fontSize: 14.5, color: 'var(--danger)' }}>회원 탈퇴</h3>
+        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: -6 }}>
+          탈퇴하면 다시 로그인할 수 없어요. 진행중인 공구를 개설했거나 미정산 매출이 있으면 탈퇴할 수 없습니다.
+        </p>
+        {!showDeleteConfirm ? (
+          <button className="btn btn-danger-outline btn-sm" onClick={() => setShowDeleteConfirm(true)}>
+            회원 탈퇴하기
+          </button>
+        ) : (
+          <form onSubmit={deleteAccount}>
+            <div className="field">
+              <label>본인 확인을 위해 비밀번호를 입력해주세요</label>
+              <input type="password" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} required />
+            </div>
+            {deleteMsg && <p className="error-text">{deleteMsg}</p>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowDeleteConfirm(false)}>
+                취소
+              </button>
+              <button type="submit" className="btn btn-danger-outline" style={{ flex: 1 }} disabled={deleting}>
+                {deleting ? '처리 중…' : '정말 탈퇴할게요'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </>
   );

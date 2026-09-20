@@ -42,6 +42,8 @@ export default function EventsPage() {
   const [showSuggest, setShowSuggest] = useState(false);
   const [recent, setRecent] = useState([]);
   const [popular, setPopular] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     setRecent(loadRecent());
@@ -51,6 +53,11 @@ export default function EventsPage() {
     })();
   }, []);
 
+  // 검색어/정렬/카테고리가 바뀌면 1페이지부터 다시 보여줌
+  useEffect(() => {
+    setPage(1);
+  }, [q, sort, category]);
+
   useEffect(() => {
     setLoading(true);
     const timer = setTimeout(async () => {
@@ -58,8 +65,13 @@ export default function EventsPage() {
       if (q.trim()) params.set('q', q.trim());
       params.set('sort', sort);
       if (category !== 'ALL') params.set('category', category);
+      params.set('page', String(page));
       const res = await fetch(`/api/events?${params.toString()}`);
-      if (res.ok) setEvents((await res.json()).events);
+      if (res.ok) {
+        const d = await res.json();
+        setEvents(d.events);
+        setTotalPages(d.totalPages || 1);
+      }
       setLoading(false);
       if (q.trim()) {
         const next = [q.trim(), ...recent.filter((r) => r !== q.trim())];
@@ -69,7 +81,7 @@ export default function EventsPage() {
     }, 500);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, sort, category]);
+  }, [q, sort, category, page]);
 
   function applySearch(term) {
     setQ(term);
@@ -192,6 +204,18 @@ export default function EventsPage() {
           );
         })}
       </div>
+
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 20 }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+            ← 이전
+          </button>
+          <span style={{ fontSize: 13, color: 'var(--text-dim)', alignSelf: 'center' }}>{page} / {totalPages}</span>
+          <button className="btn btn-ghost btn-sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
+            다음 →
+          </button>
+        </div>
+      )}
     </>
   );
 }
