@@ -4,11 +4,12 @@ import { hashPassword, signToken, COOKIE_NAME } from '@/lib/auth';
 import { generateUniqueReferralCode } from '@/lib/referral';
 import { sendEmail } from '@/lib/email';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { validatePassword } from '@/lib/passwordPolicy';
 import crypto from 'crypto';
 
 export async function POST(req) {
   const ip = getClientIp(req);
-  const rl = checkRateLimit(`register:${ip}`, { max: 5, windowMs: 60 * 60 * 1000 });
+  const rl = await checkRateLimit(`register:${ip}`, { max: 5, windowMs: 60 * 60 * 1000 });
   if (!rl.allowed) {
     return NextResponse.json({ error: '너무 많은 가입 시도가 있었어요. 잠시 후 다시 시도해주세요.' }, { status: 429 });
   }
@@ -23,8 +24,9 @@ export async function POST(req) {
   if (!agreed) {
     return NextResponse.json({ error: '이용약관 및 개인정보처리방침에 동의해주세요.' }, { status: 400 });
   }
-  if (password.length < 6) {
-    return NextResponse.json({ error: '비밀번호는 6자 이상이어야 합니다.' }, { status: 400 });
+  const pwError = validatePassword(password);
+  if (pwError) {
+    return NextResponse.json({ error: pwError }, { status: 400 });
   }
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {

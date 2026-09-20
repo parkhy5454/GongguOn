@@ -11,14 +11,17 @@ export async function GET(req) {
   }
 
   const now = new Date();
+  const oldBucketCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-  const [resetDeleted, verifyDeleted] = await Promise.all([
+  const [resetDeleted, verifyDeleted, bucketDeleted] = await Promise.all([
     prisma.passwordResetToken.deleteMany({ where: { expiresAt: { lt: now } } }),
     prisma.emailVerificationToken.deleteMany({ where: { expiresAt: { lt: now } } }),
+    prisma.rateLimitBucket.deleteMany({ where: { windowStart: { lt: oldBucketCutoff } } }),
   ]);
 
   return NextResponse.json({
     passwordResetTokensDeleted: resetDeleted.count,
     emailVerificationTokensDeleted: verifyDeleted.count,
+    rateLimitBucketsDeleted: bucketDeleted.count,
   });
 }

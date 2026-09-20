@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
 import { getOrCreateAIUser, generateAIReply } from '@/lib/aiAssistant';
+import { LIMITS, tooLong } from '@/lib/limits';
 
 export async function GET(req, { params }) {
   const user = await getCurrentUser();
@@ -24,6 +25,9 @@ export async function POST(req, { params }) {
   const { content, imageUrl } = await req.json();
   if ((!content || !content.trim()) && !imageUrl) {
     return NextResponse.json({ error: '메시지 내용을 입력해주세요.' }, { status: 400 });
+  }
+  if (tooLong(content, LIMITS.chatMessage)) {
+    return NextResponse.json({ error: `메시지는 ${LIMITS.chatMessage}자 이내로 입력해주세요.` }, { status: 400 });
   }
 
   const message = await prisma.eventMessage.create({

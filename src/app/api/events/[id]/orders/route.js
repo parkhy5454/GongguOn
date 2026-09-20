@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
 import { applicableDiscount, priceWithDiscount } from '@/lib/pricing';
 import { notify } from '@/lib/notify';
+import { LIMITS, tooLong } from '@/lib/limits';
 
 export async function POST(req, { params }) {
   const user = await getCurrentUser();
@@ -27,6 +28,9 @@ export async function POST(req, { params }) {
   }
   if (!shippingAddress || !shippingAddress.trim()) {
     return NextResponse.json({ error: '배송지 주소를 입력해주세요.' }, { status: 400 });
+  }
+  if (tooLong(shippingAddress, LIMITS.addressLine)) {
+    return NextResponse.json({ error: `배송지는 ${LIMITS.addressLine}자 이내로 입력해주세요.` }, { status: 400 });
   }
   const method = paymentMethod === 'CARD' ? 'CARD' : 'BANK_TRANSFER';
   if (method === 'CARD' && !user.emailVerifiedAt) {

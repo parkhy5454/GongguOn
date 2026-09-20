@@ -62,7 +62,7 @@ function ResetPasswordForm() {
           <form onSubmit={onSubmit}>
             <div className="field">
               <label>새 비밀번호</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="6자 이상" />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="8자 이상, 영문+숫자 포함" />
             </div>
             <div className="field">
               <label>새 비밀번호 확인</label>

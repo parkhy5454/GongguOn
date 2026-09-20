@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
+import { LIMITS, tooLong } from '@/lib/limits';
 
 export async function POST(req, { params }) {
   const user = await getCurrentUser();
@@ -21,6 +22,9 @@ export async function POST(req, { params }) {
   const r = Number(rating);
   if (!r || r < 1 || r > 5) {
     return NextResponse.json({ error: '별점은 1~5 사이로 입력해주세요.' }, { status: 400 });
+  }
+  if (tooLong(comment, LIMITS.reviewComment)) {
+    return NextResponse.json({ error: `후기는 ${LIMITS.reviewComment}자 이내로 입력해주세요.` }, { status: 400 });
   }
 
   const review = await prisma.review.upsert({

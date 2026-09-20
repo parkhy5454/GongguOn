@@ -11,8 +11,8 @@ export async function POST(req) {
   }
 
   const ip = getClientIp(req);
-  const ipLimit = checkRateLimit(`forgot-pw-ip:${ip}`, { max: 10, windowMs: 60 * 60 * 1000 });
-  const emailLimit = checkRateLimit(`forgot-pw-email:${email}`, { max: 3, windowMs: 60 * 60 * 1000 });
+  const ipLimit = await checkRateLimit(`forgot-pw-ip:${ip}`, { max: 10, windowMs: 60 * 60 * 1000 });
+  const emailLimit = await checkRateLimit(`forgot-pw-email:${email}`, { max: 3, windowMs: 60 * 60 * 1000 });
   if (!ipLimit.allowed || !emailLimit.allowed) {
     // 특정 이메일로 계속 재설정 메일이 발송되는 괴롭힘/스팸을 막기 위해 조용히 제한 (사용자에겐 평소와 같은 성공 메시지)
     return NextResponse.json({ ok: true });

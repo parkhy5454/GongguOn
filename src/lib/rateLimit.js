@@ -1,21 +1,26 @@
-// 간단한 메모리 기반 레이트 리밋 (단일 인스턴스 배포 기준으로 충분)
-const buckets = new Map();
+const { prisma } = require('./prisma');
 
-function checkRateLimit(key, { max, windowMs }) {
-  const now = Date.now();
-  const entry = buckets.get(key);
+// DB 기반 레이트 리밋. 메모리 기반과 달리 서버 재배포/재시작에도 카운트가 유지됩니다.
+async function checkRateLimit(key, { max, windowMs }) {
+  const now = new Date();
 
-  if (!entry || now - entry.start > windowMs) {
-    buckets.set(key, { start: now, count: 1 });
+  const bucket = await prisma.rateLimitBucket.findUnique({ where: { key } });
+
+  if (!bucket || now - bucket.windowStart > windowMs) {
+    await prisma.rateLimitBucket.upsert({
+      where: { key },
+      update: { count: 1, windowStart: now },
+      create: { key, count: 1, windowStart: now },
+    });
     return { allowed: true };
   }
 
-  if (entry.count >= max) {
-    const retryAfterMs = windowMs - (now - entry.start);
+  if (bucket.count >= max) {
+    const retryAfterMs = windowMs - (now - bucket.windowStart);
     return { allowed: false, retryAfterMs };
   }
 
-  entry.count += 1;
+  await prisma.rateLimitBucket.update({ where: { key }, data: { count: { increment: 1 } } });
   return { allowed: true };
 }
 

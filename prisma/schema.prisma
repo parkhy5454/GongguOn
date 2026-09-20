@@ -260,3 +260,9 @@ model AdminActionLog {
   detail    String?
   createdAt DateTime @default(now())
 }
+
+model RateLimitBucket {
+  key        String   @id
+  count      Int      @default(1)
+  windowStart DateTime @default(now())
+}

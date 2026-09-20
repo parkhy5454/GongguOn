@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
+import { LIMITS, tooLong } from '@/lib/limits';
 
 export async function POST(req, { params }) {
   const user = await getCurrentUser();
@@ -9,6 +10,9 @@ export async function POST(req, { params }) {
   const { reason, detail } = await req.json();
   if (!reason || !reason.trim()) {
     return NextResponse.json({ error: '신고 사유를 선택해주세요.' }, { status: 400 });
+  }
+  if (tooLong(detail, LIMITS.reportDetail)) {
+    return NextResponse.json({ error: `상세 내용은 ${LIMITS.reportDetail}자 이내로 입력해주세요.` }, { status: 400 });
   }
 
   const event = await prisma.event.findUnique({ where: { id: params.id } });

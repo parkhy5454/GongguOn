@@ -40,14 +40,14 @@ export async function GET(req) {
       continue;
     }
 
-    // 최소 수량 미달 → 취소 + 결제된 주문 전원 자동 환불
+    // 최소 수량 미달 → 취소 + 결제 관련된 모든 주문(PENDING 포함) 정리
     await prisma.event.update({ where: { id: event.id }, data: { status: 'CANCELLED' } });
     cancelledWithRefund++;
 
     for (const order of event.orders) {
-      if (!['PAID', 'CONFIRMED'].includes(order.paymentStatus)) continue;
+      if (order.paymentStatus === 'REFUNDED') continue;
 
-      if (order.paymentMethod === 'CARD' && order.tossPaymentKey) {
+      if (order.paymentMethod === 'CARD' && order.tossPaymentKey && ['PAID', 'CONFIRMED'].includes(order.paymentStatus)) {
         await cancelTossPayment({ paymentKey: order.tossPaymentKey, cancelReason: '최소 성사 수량 미달로 공구가 취소됐어요.' }).catch(() => {});
       }
 
@@ -58,14 +58,35 @@ export async function GET(req) {
       if (order.pointsUsed > 0) {
         await prisma.user.update({ where: { id: order.buyerId }, data: { pointBalance: { increment: order.pointsUsed } } });
       }
-      await notify(order.buyerId, {
-        type: 'refunded',
-        title: '공구가 불발되어 환불됐어요',
-        body: `"${event.title}"가 최소 성사 수량을 채우지 못해 자동 취소·환불됐어요.`,
-        url: `/events/${event.id}`,
-      });
+      // 아직 실제 결제(PAID/CONFIRMED)까지 안 간 대기 주문은 애초에 돈이 안 걸려있어 별도 알림 없이 조용히 정리
+      if (['PAID', 'CONFIRMED'].includes(order.paymentStatus)) {
+        await notify(order.buyerId, {
+          type: 'refunded',
+          title: '공구가 불발되어 환불됐어요',
+          body: `"${event.title}"가 최소 성사 수량을 채우지 못해 자동 취소·환불됐어요.`,
+          url: `/events/${event.id}`,
+        });
+      }
     }
   }
 
-  return NextResponse.json({ checked: expiredEvents.length, closed, cancelledWithRefund });
+  // 카드결제 대기 상태로 24시간 넘게 방치된 주문 정리 (결제창만 열고 안 닫은 채 이탈한 경우 — 재고/포인트가 묶여있음)
+  const staleCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const staleOrders = await prisma.order.findMany({
+    where: { paymentMethod: 'CARD', paymentStatus: 'PENDING', createdAt: { lt: staleCutoff } },
+  });
+
+  let staleCancelled = 0;
+  for (const order of staleOrders) {
+    await prisma.$transaction([
+      prisma.order.delete({ where: { id: order.id } }),
+      prisma.eventOption.update({ where: { id: order.optionId }, data: { soldCount: { decrement: order.quantity } } }),
+      ...(order.pointsUsed > 0
+        ? [prisma.user.update({ where: { id: order.buyerId }, data: { pointBalance: { increment: order.pointsUsed } } })]
+        : []),
+    ]);
+    staleCancelled++;
+  }
+
+  return NextResponse.json({ checked: expiredEvents.length, closed, cancelledWithRefund, staleCardOrdersCancelled: staleCancelled });
 }

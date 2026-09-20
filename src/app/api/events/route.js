@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
 import { EVENT_REFERRER_BONUS, EVENT_REFEREE_BONUS } from '@/lib/referral';
 import { notify } from '@/lib/notify';
+import { LIMITS, tooLong } from '@/lib/limits';
 
 export async function GET(req) {
   const user = await getCurrentUser();
@@ -79,6 +80,12 @@ export async function POST(req) {
   if (!title || !title.trim()) {
     return NextResponse.json({ error: '제목을 입력해주세요.' }, { status: 400 });
   }
+  if (tooLong(title, LIMITS.eventTitle)) {
+    return NextResponse.json({ error: `제목은 ${LIMITS.eventTitle}자 이내로 입력해주세요.` }, { status: 400 });
+  }
+  if (tooLong(description, LIMITS.eventDescription)) {
+    return NextResponse.json({ error: `설명은 ${LIMITS.eventDescription}자 이내로 입력해주세요.` }, { status: 400 });
+  }
   if (!deadline) {
     return NextResponse.json({ error: '마감일을 선택해주세요.' }, { status: 400 });
   }
@@ -88,6 +95,9 @@ export async function POST(req) {
   for (const o of options) {
     if (!o.name || !o.price || !o.stock) {
       return NextResponse.json({ error: '옵션의 이름, 가격, 수량을 모두 입력해주세요.' }, { status: 400 });
+    }
+    if (tooLong(o.name, LIMITS.optionName)) {
+      return NextResponse.json({ error: `옵션 이름은 ${LIMITS.optionName}자 이내로 입력해주세요.` }, { status: 400 });
     }
   }
 

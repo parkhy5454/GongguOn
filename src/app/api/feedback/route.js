@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
+import { LIMITS, tooLong } from '@/lib/limits';
 
 export async function POST(req) {
   const user = await getCurrentUser();
@@ -13,6 +14,9 @@ export async function POST(req) {
   }
   if (!content || !content.trim()) {
     return NextResponse.json({ error: '내용을 입력해주세요.' }, { status: 400 });
+  }
+  if (tooLong(content, LIMITS.feedbackContent)) {
+    return NextResponse.json({ error: `내용은 ${LIMITS.feedbackContent}자 이내로 입력해주세요.` }, { status: 400 });
   }
 
   const feedback = await prisma.feedback.create({
