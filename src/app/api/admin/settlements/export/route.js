@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
 import { isAdminEmail } from '@/lib/admin';
+import { logAdminAction } from '@/lib/adminLog';
 
 function csvEscape(v) {
   const s = String(v ?? '');
@@ -41,6 +42,8 @@ export async function GET() {
 
   const csv = [header, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n');
   const bom = '\uFEFF';
+
+  await logAdminAction(user.id, 'settlement_csv_export', `rows=${rows.length}`);
 
   return new Response(bom + csv, {
     headers: {

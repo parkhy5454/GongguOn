@@ -15,8 +15,16 @@ export async function POST(req) {
   }
 
   const { imageUrl } = await req.json();
-  if (!imageUrl || !imageUrl.startsWith('http')) {
+  // SSRF 방지: 우리가 실제로 업로드한 Cloudinary 이미지만 서버가 대신 요청하도록 제한
+  const ALLOWED_HOSTS = ['res.cloudinary.com'];
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(imageUrl);
+  } catch {
     return NextResponse.json({ error: '유효한 이미지가 아니에요.' }, { status: 400 });
+  }
+  if (parsedUrl.protocol !== 'https:' || !ALLOWED_HOSTS.includes(parsedUrl.hostname)) {
+    return NextResponse.json({ error: '허용되지 않은 이미지 주소예요.' }, { status: 400 });
   }
 
   let base64;

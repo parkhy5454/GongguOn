@@ -23,6 +23,7 @@ export async function GET() {
       pointBalance: user.pointBalance,
       isAdmin: isAdminEmail(user.email),
       mutedNotificationTypes: user.mutedNotificationTypes,
+      emailVerified: !!user.emailVerifiedAt,
     },
   });
 }

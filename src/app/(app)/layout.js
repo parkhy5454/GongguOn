@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { isAdminEmail } from '@/lib/admin';
 import TopNav from '@/components/TopNav';
 import BottomTabBar from '@/components/BottomTabBar';
+import EmailVerifyBanner from '@/components/EmailVerifyBanner';
 
 export default async function AppLayout({ children }) {
   const user = await getCurrentUser();
@@ -18,6 +19,7 @@ export default async function AppLayout({ children }) {
   return (
     <>
       <TopNav user={{ id: user.id, name: user.name, email: user.email, rating: agg._avg.rating, referralCode: user.referralCode, pointBalance: user.pointBalance, isAdmin: isAdminEmail(user.email) }} />
+      {!user.emailVerifiedAt && <EmailVerifyBanner />}
       {!user.phone && (
         <div style={{
           background: 'var(--accent-soft)', color: 'var(--accent)', fontSize: 13,

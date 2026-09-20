@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
 import { isAdminEmail } from '@/lib/admin';
 import { notify } from '@/lib/notify';
+import { logAdminAction } from '@/lib/adminLog';
 
 export async function POST(req) {
   const user = await getCurrentUser();
@@ -21,6 +22,8 @@ export async function POST(req) {
     },
     data: { settledAt: new Date() },
   });
+
+  await logAdminAction(user.id, 'settlement_pay', `sellerId=${sellerId}, count=${result.count}`);
 
   await notify(sellerId, {
     type: 'settlement_paid',
