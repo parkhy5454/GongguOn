@@ -168,7 +168,10 @@ export default function AdminDashboard() {
             <div style={{ fontSize: 20, fontWeight: 800 }}>{(settlements?.settledTotal || 0).toLocaleString()}원 ({settlements?.settledCount || 0}건)</div>
           </div>
           <div className="card">
-            <h3 style={{ marginTop: 0, fontSize: 14.5 }}>판매자별 미정산 금액</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <h3 style={{ margin: 0, fontSize: 14.5 }}>판매자별 미정산 금액</h3>
+              <a className="btn btn-ghost btn-sm" href="/api/admin/settlements/export">⬇️ 전체 정산 내역 CSV</a>
+            </div>
             <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: -6 }}>
               카드결제는 결제대행사(토스)를 거쳐 회사 계좌로 모이는 구조라, 실제 송금은 이 목록을 보고 관리자가 직접 처리해야 해요. "지급 처리"는 장부에 완료 표시만 남깁니다.
             </p>

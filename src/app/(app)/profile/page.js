@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { NOTIFICATION_TYPES } from '@/lib/notificationTypes';
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -10,6 +11,10 @@ export default function ProfilePage() {
   const [email, setEmail] = useState('');
   const [savingInfo, setSavingInfo] = useState(false);
   const [infoMsg, setInfoMsg] = useState('');
+
+  const [muted, setMuted] = useState([]);
+  const [savingNotif, setSavingNotif] = useState(false);
+  const [notifMsg, setNotifMsg] = useState('');
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -26,10 +31,27 @@ export default function ProfilePage() {
         setPhone(user.phone || '');
         setDefaultAddress(user.defaultAddress || '');
         setEmail(user.email || '');
+        setMuted(user.mutedNotificationTypes || []);
       }
       setLoading(false);
     })();
   }, []);
+
+  function toggleMuted(key) {
+    setMuted((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  }
+
+  async function saveNotifPrefs() {
+    setSavingNotif(true);
+    setNotifMsg('');
+    const res = await fetch('/api/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mutedNotificationTypes: muted }),
+    });
+    setSavingNotif(false);
+    setNotifMsg(res.ok ? '저장됐어요.' : '저장에 실패했습니다.');
+  }
 
   async function saveInfo(e) {
     e.preventDefault();
@@ -117,6 +139,28 @@ export default function ProfilePage() {
             {savingInfo ? '저장 중…' : '저장'}
           </button>
         </form>
+      </div>
+
+      <div className="card" style={{ maxWidth: 440, marginBottom: 20 }}>
+        <h3 style={{ marginTop: 0, fontSize: 14.5 }}>알림 설정</h3>
+        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: -6 }}>받고 싶지 않은 알림의 체크를 해제하세요.</p>
+        {NOTIFICATION_TYPES.map((t) => (
+          <label key={t.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 8, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={!muted.includes(t.key)}
+              onChange={() => toggleMuted(t.key)}
+              style={{ width: 'auto' }}
+            />
+            {t.label}
+          </label>
+        ))}
+        {notifMsg && (
+          <p style={{ fontSize: 12.5, color: notifMsg === '저장됐어요.' ? 'var(--success)' : 'var(--danger)' }}>{notifMsg}</p>
+        )}
+        <button className="btn btn-primary btn-sm" onClick={saveNotifPrefs} disabled={savingNotif}>
+          {savingNotif ? '저장 중…' : '저장'}
+        </button>
       </div>
 
       <div className="card" style={{ maxWidth: 440 }}>

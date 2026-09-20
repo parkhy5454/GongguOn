@@ -18,12 +18,38 @@ function formatDeadline(iso) {
   return `${dateStr} · ${Math.floor(hours / 24)}일 남음`;
 }
 
+const RECENT_KEY = 'gonggu-on:recent-searches';
+
+function loadRecent() {
+  if (typeof window === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+function saveRecent(list) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 8)));
+}
+
 export default function EventsPage() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [sort, setSort] = useState('new');
   const [category, setCategory] = useState('ALL');
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [recent, setRecent] = useState([]);
+  const [popular, setPopular] = useState([]);
+
+  useEffect(() => {
+    setRecent(loadRecent());
+    (async () => {
+      const res = await fetch('/api/search/popular');
+      if (res.ok) setPopular((await res.json()).popular);
+    })();
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -35,9 +61,25 @@ export default function EventsPage() {
       const res = await fetch(`/api/events?${params.toString()}`);
       if (res.ok) setEvents((await res.json()).events);
       setLoading(false);
-    }, 300);
+      if (q.trim()) {
+        const next = [q.trim(), ...recent.filter((r) => r !== q.trim())];
+        setRecent(next);
+        saveRecent(next);
+      }
+    }, 500);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, sort, category]);
+
+  function applySearch(term) {
+    setQ(term);
+    setShowSuggest(false);
+  }
+
+  function clearRecent() {
+    setRecent([]);
+    saveRecent([]);
+  }
 
   return (
     <>
@@ -47,10 +89,12 @@ export default function EventsPage() {
         </div>
       </div>
 
-      <div className="events-filter-row" style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div className="events-filter-row" style={{ display: 'flex', gap: 8, marginBottom: 16, position: 'relative' }}>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
+          onFocus={() => setShowSuggest(true)}
+          onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
           placeholder="🔍 검색"
           style={{ maxWidth: 260 }}
         />
@@ -59,6 +103,34 @@ export default function EventsPage() {
           <option value="deadline">마감임박순</option>
           <option value="popular">인기순</option>
         </select>
+
+        {showSuggest && (recent.length > 0 || popular.length > 0) && (
+          <div className="card" style={{ position: 'absolute', top: 44, left: 0, width: 280, zIndex: 20, padding: 12 }}>
+            {recent.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--text-dim)', marginBottom: 4 }}>
+                  <span>최근 검색어</span>
+                  <button type="button" onClick={clearRecent} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: 11 }}>지우기</button>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {recent.map((r) => (
+                    <button key={r} type="button" className="mini-btn" onMouseDown={() => applySearch(r)}>{r}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {popular.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-dim)', marginBottom: 4 }}>🔥 인기 검색어</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {popular.map((p) => (
+                    <button key={p} type="button" className="mini-btn" onMouseDown={() => applySearch(p)}>{p}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 18, paddingBottom: 4 }}>

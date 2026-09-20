@@ -1,86 +1,36 @@
-'use client';
+import { prisma } from '@/lib/prisma';
+import SellerStorefrontPage from '@/components/SellerStorefrontClient';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
+export async function generateMetadata({ params }) {
+  try {
+    const seller = await prisma.user.findUnique({
+      where: { id: params.id },
+      select: { name: true },
+    });
+    if (!seller) return { title: '공구온' };
 
-const STATUS_LABEL = { OPEN: '진행중', CLOSED: '마감', CANCELLED: '취소됨', COMPLETED: '완료' };
-const STATUS_CLASS = { OPEN: 'badge-open', CLOSED: 'badge-closed', CANCELLED: 'badge-cancelled', COMPLETED: 'badge-completed' };
+    const ratingAgg = await prisma.review.aggregate({
+      where: { targetId: params.id },
+      _avg: { rating: true },
+      _count: { rating: true },
+    });
 
-export default function SellerStorefrontPage() {
-  const { id } = useParams();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+    const title = `${seller.name}님의 상점 | 공구온`;
+    const description = ratingAgg._avg.rating
+      ? `⭐ ${ratingAgg._avg.rating.toFixed(1)} (후기 ${ratingAgg._count.rating}건) · 공구온에서 ${seller.name}님이 연 공동구매를 확인해보세요.`
+      : `공구온에서 ${seller.name}님이 연 공동구매를 확인해보세요.`;
 
-  useEffect(() => {
-    (async () => {
-      const res = await fetch(`/api/sellers/${id}`);
-      if (res.ok) setData(await res.json());
-      setLoading(false);
-    })();
-  }, [id]);
-
-  if (loading) return <div className="empty-state">불러오는 중…</div>;
-  if (!data) return <div className="empty-state">판매자를 찾을 수 없어요.</div>;
-
-  const { seller, events, rating, reviews, followerCount, isFollowing, isMe } = data;
-
-  async function toggleFollow() {
-    const res = await fetch(`/api/sellers/${id}/follow`, { method: 'POST' });
-    if (res.ok) {
-      const d = await res.json();
-      setData((prev) => ({ ...prev, isFollowing: d.following, followerCount: prev.followerCount + (d.following ? 1 : -1) }));
-    }
+    return {
+      title,
+      description,
+      openGraph: { title, description, type: 'website' },
+      twitter: { card: 'summary', title, description },
+    };
+  } catch {
+    return { title: '공구온' };
   }
+}
 
-  return (
-    <>
-      <div className="page-header">
-        <div>
-          <h1>{seller.name}님의 상점</h1>
-          <p>
-            {rating.avg ? `⭐ ${rating.avg.toFixed(1)} (후기 ${rating.count}건)` : '아직 받은 후기가 없어요'}
-            {' · 개설한 공구 '}{events.length}건{' · 팔로워 '}{followerCount}명
-          </p>
-          {!isMe && (
-            <button className={`btn btn-sm ${isFollowing ? 'btn-primary' : 'btn-ghost'}`} onClick={toggleFollow} style={{ marginTop: 6 }}>
-              {isFollowing ? '✓ 팔로잉' : '+ 팔로우'}
-            </button>
-          )}
-        </div>
-      </div>
-
-      <h3 style={{ fontSize: 15 }}>개설한 공구</h3>
-      <div className="grid-cards" style={{ marginBottom: 28 }}>
-        {events.map((ev) => {
-          const minPrice = ev.options.length ? Math.min(...ev.options.map((o) => o.price)) : 0;
-          return (
-            <Link key={ev.id} href={`/events/${ev.id}`} className="card event-card">
-              {ev.images?.[0] && (
-                <img src={ev.images[0]} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 8 }} />
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <h3>{ev.title}</h3>
-                <span className={`badge ${STATUS_CLASS[ev.status]}`}>{STATUS_LABEL[ev.status]}</span>
-              </div>
-              <div className="price">{minPrice.toLocaleString()}원~</div>
-            </Link>
-          );
-        })}
-        {events.length === 0 && <div className="empty-state">아직 개설한 공구가 없어요.</div>}
-      </div>
-
-      {reviews.length > 0 && (
-        <div className="card">
-          <h3 style={{ marginTop: 0, fontSize: 14.5 }}>받은 후기</h3>
-          {reviews.map((r) => (
-            <div key={r.id} className="review-row">
-              <div className="stars">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)} · {r.reviewer.name}</div>
-              {r.comment && <div style={{ marginTop: 3 }}>{r.comment}</div>}
-            </div>
-          ))}
-        </div>
-      )}
-    </>
-  );
+export default function Page() {
+  return <SellerStorefrontPage />;
 }

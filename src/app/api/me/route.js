@@ -22,6 +22,7 @@ export async function GET() {
       referralCode: user.referralCode,
       pointBalance: user.pointBalance,
       isAdmin: isAdminEmail(user.email),
+      mutedNotificationTypes: user.mutedNotificationTypes,
     },
   });
 }
@@ -30,7 +31,7 @@ export async function PATCH(req) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  const { name, phone, defaultAddress } = await req.json();
+  const { name, phone, defaultAddress, mutedNotificationTypes } = await req.json();
   const data = {};
   if (typeof name === 'string') {
     if (!name.trim()) return NextResponse.json({ error: '이름을 입력해주세요.' }, { status: 400 });
@@ -42,8 +43,11 @@ export async function PATCH(req) {
   if (typeof defaultAddress === 'string') {
     data.defaultAddress = defaultAddress.trim() || null;
   }
+  if (Array.isArray(mutedNotificationTypes)) {
+    data.mutedNotificationTypes = mutedNotificationTypes;
+  }
 
   const updated = await prisma.user.update({ where: { id: user.id }, data });
 
-  return NextResponse.json({ user: { id: updated.id, name: updated.name, phone: updated.phone, defaultAddress: updated.defaultAddress } });
+  return NextResponse.json({ user: { id: updated.id, name: updated.name, phone: updated.phone, defaultAddress: updated.defaultAddress, mutedNotificationTypes: updated.mutedNotificationTypes } });
 }

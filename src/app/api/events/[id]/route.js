@@ -68,3 +68,38 @@ export async function GET(req, { params }) {
     isFavorited: !!favorite,
   });
 }
+
+export async function PATCH(req, { params }) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  const event = await prisma.event.findUnique({ where: { id: params.id } });
+  if (!event) return NextResponse.json({ error: 'not found' }, { status: 404 });
+  if (event.hostId !== user.id) {
+    return NextResponse.json({ error: '공구를 개설한 판매자만 수정할 수 있어요.' }, { status: 403 });
+  }
+
+  const orderCount = await prisma.order.count({ where: { eventId: params.id } });
+
+  const body = await req.json();
+  const data = {};
+
+  // 참여자 유무와 무관하게 항상 수정 가능한 필드
+  if (typeof body.title === 'string' && body.title.trim()) data.title = body.title.trim();
+  if (typeof body.description === 'string') data.description = body.description || null;
+  if (Array.isArray(body.images)) data.images = body.images.filter(Boolean);
+  if (typeof body.category === 'string') data.category = body.category;
+  if (typeof body.aiAutoReply === 'boolean') data.aiAutoReply = body.aiAutoReply;
+
+  // 참여자가 아직 없을 때만 수정 가능한 필드 (가격/재고/마감일이 바뀌면 기존 주문과 어긋날 수 있어서)
+  if (orderCount === 0) {
+    if (body.deadline) data.deadline = new Date(body.deadline);
+    if (body.minQuantity) data.minQuantity = Number(body.minQuantity);
+  } else if (body.deadline || body.minQuantity) {
+    return NextResponse.json({ error: '참여자가 있는 공구는 마감일/최소수량을 변경할 수 없어요.' }, { status: 400 });
+  }
+
+  const updated = await prisma.event.update({ where: { id: params.id }, data, include: { options: true } });
+
+  return NextResponse.json({ event: updated, canEditDeadline: orderCount === 0 });
+}

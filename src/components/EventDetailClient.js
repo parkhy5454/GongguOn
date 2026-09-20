@@ -42,6 +42,8 @@ export default function EventDetailPage() {
 
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
+  const [reviewImage, setReviewImage] = useState(null);
+  const [reviewImageUploading, setReviewImageUploading] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewMsg, setReviewMsg] = useState('');
 
@@ -219,6 +221,18 @@ export default function EventDetailPage() {
     setChatImage(null);
   }
 
+  async function handleReviewImage(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setReviewImageUploading(true);
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (res.ok) setReviewImage(data.url);
+    setReviewImageUploading(false);
+  }
+
   async function submitReview(e) {
     e.preventDefault();
     setReviewSaving(true);
@@ -226,7 +240,7 @@ export default function EventDetailPage() {
     const res = await fetch(`/api/events/${id}/reviews`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rating: reviewRating, comment: reviewComment }),
+      body: JSON.stringify({ rating: reviewRating, comment: reviewComment, imageUrl: reviewImage }),
     });
     const d = await res.json();
     setReviewSaving(false);
@@ -235,6 +249,7 @@ export default function EventDetailPage() {
       return;
     }
     setReviewMsg('후기가 등록됐어요. 감사합니다!');
+    setReviewImage(null);
     await loadEvent();
   }
 
@@ -500,6 +515,9 @@ export default function EventDetailPage() {
 
             {isHost && (
               <div style={{ marginTop: 10 }}>
+                <Link href={`/events/${id}/edit`} className="btn btn-ghost btn-sm" style={{ marginBottom: 10, display: 'inline-block' }}>
+                  ✏️ 공구 정보 수정
+                </Link>
                 <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: 13 }}>
                   {event.options.map((o) => (
                     <div key={o.id}>
@@ -606,6 +624,19 @@ export default function EventDetailPage() {
                   ))}
                 </div>
                 <textarea placeholder="후기를 남겨주세요 (선택)" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} rows={2} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                  <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer' }}>
+                    📷 사진 첨부
+                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleReviewImage} />
+                  </label>
+                  {reviewImageUploading && <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>업로드 중…</span>}
+                  {reviewImage && (
+                    <div style={{ position: 'relative' }}>
+                      <img src={reviewImage} alt="" style={{ height: 44, borderRadius: 6 }} />
+                      <button type="button" onClick={() => setReviewImage(null)} style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: 'var(--danger)', color: '#fff', border: 'none', fontSize: 10 }}>✕</button>
+                    </div>
+                  )}
+                </div>
                 {reviewMsg && <p style={{ fontSize: 12.5, color: reviewMsg.includes('등록됐어요') ? 'var(--success)' : 'var(--danger)' }}>{reviewMsg}</p>}
                 <button className="btn btn-primary btn-sm" type="submit" disabled={reviewSaving} style={{ marginTop: 6 }}>
                   {reviewSaving ? '등록 중…' : '후기 등록'}
@@ -621,6 +652,9 @@ export default function EventDetailPage() {
                 <div key={r.id} className="review-row">
                   <div className="stars">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)} · {r.reviewer.name}</div>
                   {r.comment && <div style={{ marginTop: 3 }}>{r.comment}</div>}
+                  {r.imageUrl && (
+                    <img src={r.imageUrl} alt="" style={{ marginTop: 6, maxWidth: 160, borderRadius: 8, border: '1px solid var(--border)' }} />
+                  )}
                 </div>
               ))}
             </div>

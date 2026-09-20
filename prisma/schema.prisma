@@ -39,6 +39,7 @@ model User {
   favorites       Favorite[]
   following       Follow[] @relation("Follower")
   followers       Follow[] @relation("Followee")
+  mutedNotificationTypes String[] @default([])
 }
 
 enum EventStatus {
@@ -177,6 +178,7 @@ model Review {
   target    User     @relation("Target", fields: [targetId], references: [id])
   rating    Int
   comment   String?
+  imageUrl  String?
   createdAt DateTime @default(now())
 
   @@unique([eventId, reviewerId])
@@ -227,4 +229,10 @@ model Follow {
   createdAt   DateTime @default(now())
 
   @@unique([followerId, sellerId])
+}
+
+model SearchLog {
+  id        String   @id @default(cuid())
+  query     String
+  createdAt DateTime @default(now())
 }

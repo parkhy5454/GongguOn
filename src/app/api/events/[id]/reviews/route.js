@@ -17,7 +17,7 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: '입금 확인이 완료된 주문만 후기를 남길 수 있어요.' }, { status: 403 });
   }
 
-  const { rating, comment } = await req.json();
+  const { rating, comment, imageUrl } = await req.json();
   const r = Number(rating);
   if (!r || r < 1 || r > 5) {
     return NextResponse.json({ error: '별점은 1~5 사이로 입력해주세요.' }, { status: 400 });
@@ -25,13 +25,14 @@ export async function POST(req, { params }) {
 
   const review = await prisma.review.upsert({
     where: { eventId_reviewerId: { eventId: params.id, reviewerId: user.id } },
-    update: { rating: r, comment: comment || null },
+    update: { rating: r, comment: comment || null, imageUrl: imageUrl || null },
     create: {
       eventId: params.id,
       reviewerId: user.id,
       targetId: event.hostId,
       rating: r,
       comment: comment || null,
+      imageUrl: imageUrl || null,
     },
     include: { reviewer: { select: { id: true, name: true } } },
   });

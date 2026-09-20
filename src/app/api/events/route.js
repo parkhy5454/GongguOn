@@ -13,6 +13,10 @@ export async function GET(req) {
   const sort = searchParams.get('sort') || 'new';
   const category = searchParams.get('category');
 
+  if (q) {
+    prisma.searchLog.create({ data: { query: q } }).catch(() => {});
+  }
+
   const orderBy =
     sort === 'deadline' ? { deadline: 'asc' } :
     sort === 'popular' ? { orders: { _count: 'desc' } } :
