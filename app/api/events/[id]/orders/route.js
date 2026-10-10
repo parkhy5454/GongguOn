@@ -1,0 +1,117 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/authServer';
+import { applicableDiscount, priceWithDiscount } from '@/lib/pricing';
+import { notify } from '@/lib/notify';
+import { LIMITS, tooLong } from '@/lib/limits';
+
+export async function POST(req, { params }) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  const event = await prisma.event.findUnique({ where: { id: params.id }, include: { discountTiers: true } });
+  if (!event) return NextResponse.json({ error: 'not found' }, { status: 404 });
+  if (event.status !== 'OPEN') {
+    return NextResponse.json({ error: '지금은 참여할 수 없는 공구예요 (마감/취소됨).' }, { status: 400 });
+  }
+  if (new Date(event.deadline) < new Date()) {
+    return NextResponse.json({ error: '마감 시간이 지났습니다.' }, { status: 400 });
+  }
+  if (event.hostId === user.id) {
+    return NextResponse.json({ error: '본인이 개설한 공구에는 참여할 수 없어요.' }, { status: 400 });
+  }
+
+  const { optionId, quantity, usePoints, shippingAddress, paymentMethod } = await req.json();
+  const qty = Number(quantity);
+  if (!optionId || !qty || qty < 1) {
+    return NextResponse.json({ error: '옵션과 수량을 확인해주세요.' }, { status: 400 });
+  }
+  if (!shippingAddress || !shippingAddress.trim()) {
+    return NextResponse.json({ error: '배송지 주소를 입력해주세요.' }, { status: 400 });
+  }
+  if (tooLong(shippingAddress, LIMITS.addressLine)) {
+    return NextResponse.json({ error: `배송지는 ${LIMITS.addressLine}자 이내로 입력해주세요.` }, { status: 400 });
+  }
+  const method = paymentMethod === 'CARD' ? 'CARD' : 'BANK_TRANSFER';
+  if (method === 'CARD' && !user.emailVerifiedAt) {
+    return NextResponse.json(
+      { error: '카드 결제는 이메일 인증 후 이용할 수 있어요. 상단 배너에서 인증 메일을 확인해주세요. (계좌이체는 바로 이용 가능해요)' },
+      { status: 403 }
+    );
+  }
+
+  let order;
+  try {
+    order = await prisma.$transaction(async (tx) => {
+      const option = await tx.eventOption.findUnique({ where: { id: optionId } });
+      if (!option || option.eventId !== params.id) {
+        throw new Error('옵션을 찾을 수 없습니다.');
+      }
+
+      // 동시 요청에서도 재고가 초과 판매되지 않도록, "그 시점의 재고가 충분할 때만" 원자적으로 증가시킴
+      const updateResult = await tx.$executeRaw`
+        UPDATE "EventOption"
+        SET "soldCount" = "soldCount" + ${qty}
+        WHERE "id" = ${optionId} AND "stock" >= "soldCount" + ${qty}
+      `;
+      if (updateResult === 0) {
+        const fresh = await tx.eventOption.findUnique({ where: { id: optionId } });
+        const remaining = fresh ? fresh.stock - fresh.soldCount : 0;
+        throw new Error(`재고가 부족해요 (남은 수량: ${Math.max(0, remaining)}개).`);
+      }
+
+      // 참여 인원 연동 동적 할인: 지금 참여하면 몇 번째 참여자가 되는지로 계산
+      const existingBuyers = await tx.order.findMany({ where: { eventId: params.id }, select: { buyerId: true } });
+      const buyerSet = new Set(existingBuyers.map((o) => o.buyerId));
+      buyerSet.add(user.id);
+      const discountPercent = applicableDiscount(event.discountTiers, buyerSet.size);
+      const unitPrice = priceWithDiscount(option.price, discountPercent);
+
+      const buyer = await tx.user.findUnique({ where: { id: user.id } });
+      const rawAmount = unitPrice * qty;
+      let pointsToUse = 0;
+      if (usePoints) {
+        pointsToUse = Math.min(buyer.pointBalance, rawAmount);
+      }
+
+      if (pointsToUse > 0) {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { pointBalance: { decrement: pointsToUse } },
+        });
+      }
+
+      return tx.order.create({
+        data: {
+          eventId: params.id,
+          optionId,
+          buyerId: user.id,
+          quantity: qty,
+          amount: rawAmount - pointsToUse,
+          discountPercent,
+          pointsUsed: pointsToUse,
+          shippingAddress: shippingAddress.trim(),
+          paymentMethod: method,
+        },
+        include: { option: true },
+      });
+    });
+  } catch (err) {
+    return NextResponse.json({ error: err.message || '참여에 실패했습니다.' }, { status: 400 });
+  }
+
+  const io = global.__io;
+  if (io) io.to(`event:${params.id}`).emit('order-created', { eventId: params.id });
+
+  // 계좌이체는 참여 즉시 알림, 카드결제는 실제 결제 확정 시점(/api/payments/confirm)에만 알림 (중복 방지)
+  if (method === 'BANK_TRANSFER') {
+    await notify(event.hostId, {
+      type: 'new_order',
+      title: '새로운 참여자가 있어요',
+      body: `"${event.title}"에 ${user.name}님이 참여했어요.`,
+      url: `/events/${params.id}`,
+    });
+  }
+
+  return NextResponse.json({ order });
+}

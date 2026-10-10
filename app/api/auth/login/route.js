@@ -1,40 +1,57 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-const prisma = new PrismaClient();
-export const dynamic = 'force-dynamic';
+import { prisma } from '@/lib/prisma';
+import { verifyPassword, signToken, COOKIE_NAME } from '@/lib/auth';
 
-export async function POST(req){
-  try{
-    const { email, password } = await req.json();
-    console.log('[LOGIN] email', email);
+const MAX_ATTEMPTS = 5;
+const LOCK_MINUTES = 15;
 
-    const user:any = await prisma.user.findFirst({ where:{ email } });
-    if(!user) return NextResponse.json({error:'존재하지 않는 이메일입니다. /signup에서 가입하세요'}, {status:401});
+export async function POST(req) {
+  const { email, password } = await req.json();
+  const user = await prisma.user.findUnique({ where: { email } });
 
-    console.log('[LOGIN] found user id', user.id, 'keys', Object.keys(user));
-
-    // 가능한 모든 해시 필드 찾기
-    const hash = user.password || user.passwordHash || user.hashedPassword || user.pwd || null;
-    console.log('[LOGIN] hash exists?', !!hash, 'preview', hash?.substring(0,10));
-
-    if(!hash){
-      return NextResponse.json({error:'이 계정에 비밀번호가 설정되지 않았습니다. /reset-password에서 재설정하세요'}, {status:401});
-    }
-
-    const valid = await bcrypt.compare(password, hash);
-    console.log('[LOGIN] valid?', valid);
-    if(!valid) return NextResponse.json({error:'비밀번호가 틀렸습니다. /reset-password에서 재설정하세요'}, {status:401});
-
-    const secret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'gongguon-dev-secret-2024';
-    const token = jwt.sign({ id: user.id, email: user.email }, secret, { expiresIn: '7d' });
-
-    const res = NextResponse.json({ success:true, user: { id:user.id, email:user.email, name:user.name } });
-    res.cookies.set('token', token, { httpOnly:true, maxAge: 60*60*24*7, path:'/' });
-    return res;
-  }catch(e:any){
-    console.error('[LOGIN ERROR]', e);
-    return NextResponse.json({error:'서버 오류: ' + e.message}, {status:500});
+  // 계정 존재 여부를 노출하지 않기 위해, 없는 계정도 있는 계정과 같은 오류 메시지를 씀
+  if (!user || user.deletedAt) {
+    return NextResponse.json({ error: '이메일 또는 비밀번호가 올바르지 않습니다.' }, { status: 400 });
   }
+
+  if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
+    const minutesLeft = Math.ceil((new Date(user.lockedUntil) - new Date()) / 60000);
+    return NextResponse.json(
+      { error: `로그인 시도가 너무 많아 잠시 잠겼어요. ${minutesLeft}분 후 다시 시도해주세요.` },
+      { status: 429 }
+    );
+  }
+
+  const ok = await verifyPassword(password, user.passwordHash);
+
+  if (!ok) {
+    const attempts = (user.failedLoginAttempts || 0) + 1;
+    const data = { failedLoginAttempts: attempts };
+    if (attempts >= MAX_ATTEMPTS) {
+      data.lockedUntil = new Date(Date.now() + LOCK_MINUTES * 60 * 1000);
+      data.failedLoginAttempts = 0;
+    }
+    await prisma.user.update({ where: { id: user.id }, data });
+
+    if (data.lockedUntil) {
+      return NextResponse.json(
+        { error: `비밀번호를 ${MAX_ATTEMPTS}회 틀려서 ${LOCK_MINUTES}분간 잠겼어요. 잠시 후 다시 시도해주세요.` },
+        { status: 429 }
+      );
+    }
+    return NextResponse.json({ error: '이메일 또는 비밀번호가 올바르지 않습니다.' }, { status: 400 });
+  }
+
+  // 로그인 성공 시 실패 카운트 초기화
+  if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+    await prisma.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null } });
+  }
+
+  const token = signToken({ sub: user.id, email: user.email, name: user.name, tv: user.tokenVersion });
+  const res = NextResponse.json({ id: user.id, email: user.email, name: user.name });
+  res.cookies.set(COOKIE_NAME, token, {
+    httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production',
+    path: '/', maxAge: 60 * 60 * 24 * 30,
+  });
+  return res;
 }

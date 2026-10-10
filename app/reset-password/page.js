@@ -1,26 +1,88 @@
-"use client";
-import { useState } from 'react';
-export default function ResetPage(){
-  const [email,setEmail]=useState('parkhy5454@gmail.com');
-  const [pw,setPw]=useState('');
-  const [msg,setMsg]=useState('');
-  const submit=async(e:any)=>{
+'use client';
+
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+
+function ResetPasswordForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token');
+
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
+
+  async function onSubmit(e) {
     e.preventDefault();
-    const res=await fetch('/api/auth/reset',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password:pw})});
-    const data=await res.json();
-    setMsg(data.success ? '✅ 비밀번호가 변경되었습니다! /login으로 가서 로그인하세요' : '❌ '+data.error);
-  };
+    setError('');
+    if (password !== confirm) {
+      setError('비밀번호가 서로 달라요.');
+      return;
+    }
+    setLoading(true);
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, password }),
+    });
+    const d = await res.json();
+    setLoading(false);
+    if (!res.ok) {
+      setError(d.error || '재설정에 실패했습니다.');
+      return;
+    }
+    setDone(true);
+    setTimeout(() => router.push('/login'), 1500);
+  }
+
+  if (!token) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <h1>링크가 올바르지 않아요</h1>
+          <p className="sub">이메일에 있는 링크를 통해 다시 접속해주세요.</p>
+          <Link href="/forgot-password" className="btn btn-primary btn-block">비밀번호 찾기로 이동</Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{minHeight:'80vh', display:'flex', justifyContent:'center', alignItems:'center', padding:'20px'}}>
-      <form onSubmit={submit} style={{width:'100%', maxWidth:'400px', border:'1px solid #eee', padding:'30px', borderRadius:'12px'}}>
-        <h1 style={{fontSize:'22px', fontWeight:'bold', marginBottom:'20px'}}>비밀번호 재설정</h1>
-        <p style={{fontSize:'13px', color:'#666', marginBottom:'16px'}}>기존 계정의 비번을 새로 바꿉니다. 이 페이지는 임시로 쓰는 겁니다.</p>
-        <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="이메일" style={{width:'100%', padding:'12px', marginBottom:'12px', border:'1px solid #ddd', borderRadius:'8px'}}/>
-        <input type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="새 비밀번호 (6자 이상)" style={{width:'100%', padding:'12px', marginBottom:'20px', border:'1px solid #ddd', borderRadius:'8px'}}/>
-        <button style={{width:'100%', padding:'12px', background:'#000', color:'#fff', borderRadius:'8px', border:'none'}}>비밀번호 변경</button>
-        {msg && <p style={{marginTop:'16px', padding:'12px', background:'#f5f5f5', borderRadius:'8px', fontSize:'14px'}}>{msg}</p>}
-        <p style={{marginTop:'16px', textAlign:'center'}}><a href="/login" style={{color:'#000'}}>로그인하러 가기</a></p>
-      </form>
+    <div className="auth-page">
+      <div className="auth-card">
+        <h1>새 비밀번호 설정</h1>
+        <p className="sub">새로 쓸 비밀번호를 입력해주세요</p>
+
+        {done ? (
+          <p style={{ fontSize: 13.5 }}>비밀번호가 변경됐어요! 로그인 화면으로 이동합니다…</p>
+        ) : (
+          <form onSubmit={onSubmit}>
+            <div className="field">
+              <label>새 비밀번호</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="8자 이상, 영문+숫자 포함" />
+            </div>
+            <div className="field">
+              <label>새 비밀번호 확인</label>
+              <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required placeholder="다시 한 번 입력" />
+            </div>
+            {error && <p className="error-text">{error}</p>}
+            <button className="btn btn-primary btn-block" type="submit" disabled={loading} style={{ marginTop: 6 }}>
+              {loading ? '변경 중…' : '비밀번호 변경'}
+            </button>
+          </form>
+        )}
+      </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }
