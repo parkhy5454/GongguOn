@@ -1,0 +1,46 @@
+
+/// --- 공구온 가격 경쟁력 업그레이드 - prisma/schema.prisma 에 추가 ---
+
+// Product 모델에 추가할 필드들
+model Product {
+  // ... 기존 필드 ...
+
+  // [UPGRADE 1] 선주문 시스템
+  isPreorder          Boolean   @default(false)
+  preorderDeadline    DateTime? // 예: 매주 월요일 23:59
+  factoryLeadTime     Int       @default(3) // 제작 소요 일수
+  factoryEmail        String?   // 공장 자동 발주 이메일
+
+  // [UPGRADE 2] 역경매 강화 (기존 tier 있으면 확장)
+  priceTiers          Json?     // [{count:10, price:19800}, {count:30, price:17800}, {count:50, price:14800}]
+  inviteReward        Int       @default(1000) // 초대 시 추가 할인
+
+  // [UPGRADE 3] 리퍼 / 땡처리
+  isRefurbished       Boolean   @default(false)
+  refurbReason        String?   // "박스 찌그러짐", "시즌오프", "수출반송"
+  originalPrice       Int?      // 정가 표시용
+  refurbImages        String[]  @default([]) // 하자 부분 사진
+
+  // [UPGRADE] 원가 공개 (신뢰도용)
+  factoryPrice        Int?      // 공장가 공개 시 신뢰도 UP
+  showFactoryPrice    Boolean   @default(false)
+}
+
+// Order 모델에 추가
+model Order {
+  // ... 기존 ...
+  inviteCode          String?   // 내가 사용한 초대 코드
+  appliedTierPrice    Int?      // 실제로 적용된 역경매 가격
+}
+
+// 새로 추가: 공장 발주서
+model FactoryOrder {
+  id            String   @id @default(cuid())
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id])
+  totalQty      Int
+  breakdown     Json     // 옵션별 수량
+  status        String   @default("PENDING") // PENDING, SENT, CONFIRMED
+  createdAt     DateTime @default(now())
+  sentAt        DateTime?
+}
