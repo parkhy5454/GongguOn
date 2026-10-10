@@ -1,0 +1,15 @@
+
+Render 환경변수 설정 방법 (매우 중요!)
+
+1. Render 대시보드 > worktalk-y5tr 서비스 > Environment 탭
+2. 아래 2개 추가 (Add Environment Variable):
+
+Key: DATABASE_URL
+Value: (Neon DB URL - 기존 GongguOn에 있던 그 URL 그대로 복사)
+
+Key: JWT_SECRET
+Value: gongguon-super-secret-2024-!@#
+
+3. Save Changes 누르면 자동 재배포됨
+
+이거 안 하면 로그인 절대 안 됩니다!
