@@ -1,0 +1,16 @@
+
+# 기존 render.yaml에 추가 - factory cron
+services:
+  - type: web
+    name: gongguon
+    env: node
+    buildCommand: npm install && npx prisma generate && npx prisma migrate deploy && npm run build
+    startCommand: npm start
+    envVars:
+      - key: CRON_SECRET
+        generateValue: true
+
+# cron-job.org에 등록할 URL 3개
+# 1. 마감 자동 처리 (기존): /api/cron/auto-close?secret=CRON_SECRET  (30분마다)
+# 2. [NEW] 공장 자동 발주: /api/cron/factory-orders?secret=CRON_SECRET (매주 월요일 23:59)
+# 3. 마감임박 알림: /api/cron/deadline-reminders?secret=CRON_SECRET (1시간마다)
