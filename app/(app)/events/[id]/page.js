@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import EventDetailPage from '@/components/EventDetailClient';
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata({ params: paramsPromise }) {
+  const params = await paramsPromise;
   try {
     const event = await prisma.event.findUnique({
       where: { id: params.id },

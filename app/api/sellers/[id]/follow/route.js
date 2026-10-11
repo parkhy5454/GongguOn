@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
 
-export async function POST(req, { params }) {
+export async function POST(req, { params: paramsPromise }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (user.id === params.id) return NextResponse.json({ error: '본인은 팔로우할 수 없어요.' }, { status: 400 });

@@ -6,7 +6,8 @@ import { notify } from '@/lib/notify';
 const DELIVERY_LABEL = { PREPARING: '상품 준비중', SHIPPING: '배송중', DONE: '배송 완료' };
 const STATUS_LABEL = { OPEN: '진행중', CLOSED: '마감', CANCELLED: '취소됨', COMPLETED: '완료' };
 
-export async function PATCH(req, { params }) {
+export async function PATCH(req, { params: paramsPromise }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 

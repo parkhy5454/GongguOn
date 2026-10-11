@@ -9,7 +9,8 @@ function csvEscape(v) {
   return s;
 }
 
-export async function GET(req, { params }) {
+export async function GET(req, { params: paramsPromise }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user) return new Response('unauthorized', { status: 401 });
 

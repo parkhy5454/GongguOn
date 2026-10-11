@@ -3,7 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
 import { LIMITS, tooLong } from '@/lib/limits';
 
-export async function POST(req, { params }) {
+export async function POST(req, { params: paramsPromise }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 

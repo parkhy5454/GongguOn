@@ -3,7 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
 import { applicableDiscount } from '@/lib/pricing';
 
-export async function GET(req, { params }) {
+export async function GET(req, { params: paramsPromise }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
@@ -69,7 +70,8 @@ export async function GET(req, { params }) {
   });
 }
 
-export async function PATCH(req, { params }) {
+export async function PATCH(req, { params: paramsPromise }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 

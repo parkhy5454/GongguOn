@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import SellerStorefrontPage from '@/components/SellerStorefrontClient';
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata({ params: paramsPromise }) {
+  const params = await paramsPromise;
   try {
     const seller = await prisma.user.findUnique({
       where: { id: params.id },

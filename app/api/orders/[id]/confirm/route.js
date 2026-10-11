@@ -4,7 +4,8 @@ import { getCurrentUser } from '@/lib/authServer';
 import { applyFirstPurchaseRewardIfNeeded } from '@/lib/rewards';
 import { notify } from '@/lib/notify';
 
-export async function PATCH(req, { params }) {
+export async function PATCH(req, { params: paramsPromise }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 

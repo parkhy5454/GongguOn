@@ -4,7 +4,8 @@ import { getCurrentUser } from '@/lib/authServer';
 import { cancelTossPayment } from '@/lib/toss';
 import { finalizeOrderRefunded } from '@/lib/paymentReconcile';
 
-export async function POST(req, { params }) {
+export async function POST(req, { params: paramsPromise }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 

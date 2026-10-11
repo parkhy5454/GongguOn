@@ -4,7 +4,8 @@ import { getCurrentUser } from '@/lib/authServer';
 import { getOrCreateAIUser, generateAIReply } from '@/lib/aiAssistant';
 import { LIMITS, tooLong } from '@/lib/limits';
 
-export async function GET(req, { params }) {
+export async function GET(req, { params: paramsPromise }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
@@ -18,7 +19,8 @@ export async function GET(req, { params }) {
   return NextResponse.json({ messages });
 }
 
-export async function POST(req, { params }) {
+export async function POST(req, { params: paramsPromise }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
