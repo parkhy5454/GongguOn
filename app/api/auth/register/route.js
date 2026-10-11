@@ -5,6 +5,7 @@ import { generateUniqueReferralCode } from '@/lib/referral';
 import { sendEmail } from '@/lib/email';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { validatePassword } from '@/lib/passwordPolicy';
+import { verifyTurnstile } from '@/lib/turnstile';
 import crypto from 'crypto';
 
 export async function POST(req) {
@@ -14,7 +15,12 @@ export async function POST(req) {
     return NextResponse.json({ error: '너무 많은 가입 시도가 있었어요. 잠시 후 다시 시도해주세요.' }, { status: 429 });
   }
 
-  const { email, password, name, phone, ref, agreed } = await req.json();
+  const { email, password, name, phone, ref, agreed, ageOk, captchaToken } = await req.json();
+
+  const captcha = await verifyTurnstile(captchaToken, ip);
+  if (!captcha.ok) {
+    return NextResponse.json({ error: '사람인지 확인하는 단계를 통과하지 못했어요. 새로고침 후 다시 시도해주세요.' }, { status: 400 });
+  }
   if (!email || !password || !name) {
     return NextResponse.json({ error: '이름, 이메일, 비밀번호를 모두 입력해주세요.' }, { status: 400 });
   }
@@ -23,6 +29,9 @@ export async function POST(req) {
   }
   if (!agreed) {
     return NextResponse.json({ error: '이용약관 및 개인정보처리방침에 동의해주세요.' }, { status: 400 });
+  }
+  if (!ageOk) {
+    return NextResponse.json({ error: '만 14세 이상만 가입할 수 있어요.' }, { status: 400 });
   }
   const pwError = validatePassword(password);
   if (pwError) {

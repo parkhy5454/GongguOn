@@ -4,6 +4,20 @@ const next = require('next');
 const { Server } = require('socket.io');
 const { verifyToken, getTokenFromCookieHeader, DEFAULT_SECRET } = require('./lib/auth');
 
+const { sendAlert } = require('./lib/alert');
+
+// 예상치 못한 오류로 서버가 죽거나 불안정해질 때 운영자에게 알림 (ALERT_WEBHOOK_URL / 이메일 설정 시)
+process.on('unhandledRejection', (reason) => {
+  console.error('unhandledRejection:', reason);
+  sendAlert('처리되지 않은 오류(unhandledRejection)', String((reason && reason.stack) || reason)).catch(() => {});
+});
+process.on('uncaughtException', (err) => {
+  console.error('uncaughtException:', err);
+  sendAlert('서버 치명적 오류(uncaughtException)', String((err && err.stack) || err))
+    .catch(() => {})
+    .finally(() => process.exit(1));
+});
+
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = '0.0.0.0';
 const port = process.env.PORT || 3000;

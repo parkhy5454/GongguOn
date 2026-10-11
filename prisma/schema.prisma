@@ -20,6 +20,9 @@ model User {
   lockedUntil  DateTime?
   deletedAt    DateTime?
   tokenVersion Int      @default(0)
+  totpSecret   String?
+  totpEnabled  Boolean  @default(false)
+  totpLastStep Int?
   passwordHash String
   createdAt    DateTime @default(now())
 

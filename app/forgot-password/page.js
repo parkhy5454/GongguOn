@@ -2,26 +2,34 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Turnstile, { captchaEnabled } from '@/components/Turnstile';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaReset, setCaptchaReset] = useState(0);
 
   async function onSubmit(e) {
     e.preventDefault();
     setError('');
+    if (captchaEnabled && !captchaToken) {
+      setError('사람 확인이 끝날 때까지 잠시만 기다려주세요.');
+      return;
+    }
     setLoading(true);
     const res = await fetch('/api/auth/forgot-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, captchaToken }),
     });
     setLoading(false);
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
       setError(d.error || '요청에 실패했습니다.');
+      setCaptchaReset((n) => n + 1);
       return;
     }
     setSent(true);
@@ -49,6 +57,7 @@ export default function ForgotPasswordPage() {
               <label>이메일</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@email.com" />
             </div>
+            <Turnstile onToken={setCaptchaToken} resetKey={captchaReset} />
             {error && <p className="error-text">{error}</p>}
             <button className="btn btn-primary btn-block" type="submit" disabled={loading} style={{ marginTop: 6 }}>
               {loading ? '전송 중…' : '재설정 링크 받기'}

@@ -2,15 +2,20 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendEmail } from '@/lib/email';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { verifyTurnstile } from '@/lib/turnstile';
 import crypto from 'crypto';
 
 export async function POST(req) {
-  const { email } = await req.json();
+  const { email, captchaToken } = await req.json();
   if (!email) {
     return NextResponse.json({ error: '이메일을 입력해주세요.' }, { status: 400 });
   }
 
   const ip = getClientIp(req);
+  const captcha = await verifyTurnstile(captchaToken, ip);
+  if (!captcha.ok) {
+    return NextResponse.json({ error: '사람인지 확인하는 단계를 통과하지 못했어요. 새로고침 후 다시 시도해주세요.' }, { status: 400 });
+  }
   const ipLimit = await checkRateLimit(`forgot-pw-ip:${ip}`, { max: 10, windowMs: 60 * 60 * 1000 });
   const emailLimit = await checkRateLimit(`forgot-pw-email:${email}`, { max: 3, windowMs: 60 * 60 * 1000 });
   if (!ipLimit.allowed || !emailLimit.allowed) {

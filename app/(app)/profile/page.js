@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { NOTIFICATION_TYPES } from '@/lib/notificationTypes';
+import TwoFactorSettings from '@/components/TwoFactorSettings';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -228,6 +229,8 @@ export default function ProfilePage() {
           </button>
         </form>
       </div>
+
+      <TwoFactorSettings />
 
       <div className="card" style={{ maxWidth: 440, marginTop: 20 }}>
         <h3 style={{ marginTop: 0, fontSize: 14.5 }}>다른 기기에서 로그아웃</h3>

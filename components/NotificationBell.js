@@ -33,6 +33,11 @@ export default function NotificationBell() {
   useEffect(() => {
     load();
     const socket = io({ path: '/socket.io' });
+    let connectedBefore = false;
+    socket.on('connect', () => {
+      if (connectedBefore) load(); // 재연결 시 놓친 알림 새로 불러오기
+      connectedBefore = true;
+    });
     socket.on('notification', (n) => {
       setItems((prev) => [n, ...prev]);
       setUnread((prev) => prev + 1);

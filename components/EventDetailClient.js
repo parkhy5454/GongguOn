@@ -93,15 +93,25 @@ export default function EventDetailPage() {
       }
     })();
 
-    (async () => {
+    const reloadMessages = async () => {
       const res = await fetch(`/api/events/${id}/messages`);
       if (res.ok) setMessages((await res.json()).messages);
       fetch(`/api/events/${id}/read`, { method: 'POST' }).catch(() => {});
-    })();
+    };
+    reloadMessages();
 
     const socket = io({ path: '/socket.io' });
     socketRef.current = socket;
-    socket.emit('join-event', id);
+    // 연결될 때마다(서버가 잠들었다 깨어나 재연결된 경우 포함) 방에 다시 입장하고, 놓친 내용을 새로 불러옴
+    let connectedBefore = false;
+    socket.on('connect', () => {
+      socket.emit('join-event', id);
+      if (connectedBefore) {
+        reloadMessages();
+        loadEvent();
+      }
+      connectedBefore = true;
+    });
 
     socket.on('new-message', (msg) => {
       setMessages((prev) => [...prev, msg]);
