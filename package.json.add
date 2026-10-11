@@ -1,9 +1,0 @@
-{
-  "add_to_your_package.json_dependencies": {
-    "typescript": "^5.4.0",
-    "@types/react": "^18.2.0",
-    "@types/node": "^20.0.0",
-    "web-push": "^3.6.7"
-  },
-  "instructions": "기존 package.json의 dependencies에 위 4개 추가"
-}
