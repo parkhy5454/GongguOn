@@ -1,1 +1,0 @@
-export const notificationTypes=[{id:'info',name:'정보'}]; export const NOTIFICATION_TYPES=notificationTypes; export default notificationTypes;
