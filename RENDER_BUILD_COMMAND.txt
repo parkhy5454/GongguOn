@@ -1,5 +1,0 @@
-FINAL Build Command - Render에 그대로 붙여넣기:
-
-npm install && npm install --no-save typescript @types/react @types/node web-push && npx prisma generate && npx prisma migrate deploy && npm run build
-
-이 명령어는 package.json에 typescript가 없어도 강제로 깔아서 빌드합니다.
