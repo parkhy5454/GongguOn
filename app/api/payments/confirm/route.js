@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
 import { confirmTossPayment } from '@/lib/toss';
-import { finalizeOrderConfirmed } from '@/lib/paymentReconcile';
+import { finalizeOrderConfirmed, notifyHostPaid } from '@/lib/paymentReconcile';
 import { notify } from '@/lib/notify';
+import { bankName } from '@/lib/banks';
 
 export async function POST(req) {
   const user = await getCurrentUser();
@@ -20,6 +21,10 @@ export async function POST(req) {
   if (order.paymentStatus === 'CONFIRMED') {
     return NextResponse.json({ order }); // 이미 처리된 결제(중복 콜백 또는 웹훅이 먼저 처리)면 그대로 성공 응답
   }
+  // 가상계좌는 계좌 발급 후 입금 대기 상태로 이 화면에 다시 올 수 있음 (새로고침 등) — 발급 정보를 그대로 보여줌
+  if (order.paymentMethod === 'VIRTUAL_ACCOUNT' && order.vaNumber) {
+    return NextResponse.json({ order: publicOrder(order), virtualAccount: vaInfo(order) });
+  }
   if (Number(amount) !== order.amount) {
     return NextResponse.json({ error: '결제 금액이 일치하지 않아요.' }, { status: 400 });
   }
@@ -29,14 +34,38 @@ export async function POST(req) {
     return NextResponse.json({ error }, { status: 400 });
   }
 
+  // 가상계좌: 승인 시점에는 "입금 대기" 상태로 계좌번호만 발급됨 → 실제 입금은 웹훅이 확인
+  if (payment.status === 'WAITING_FOR_DEPOSIT' && payment.virtualAccount) {
+    const va = payment.virtualAccount;
+    const updated = await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        tossPaymentKey: payment.paymentKey,
+        vaBank: bankName(va.bankCode || va.bank),
+        vaNumber: va.accountNumber,
+        vaDue: va.dueDate ? new Date(va.dueDate) : null,
+        vaSecret: payment.secret || null,
+      },
+    });
+    await notify(user.id, {
+      type: 'payment_confirmed',
+      title: '입금 계좌가 발급됐어요',
+      body: `${updated.vaBank} ${updated.vaNumber} · ${updated.amount.toLocaleString()}원을 입금기한 안에 입금해주세요.`,
+      url: `/events/${order.eventId}`,
+    });
+    return NextResponse.json({ order: publicOrder(updated), virtualAccount: vaInfo(updated) });
+  }
+
   const updated = await finalizeOrderConfirmed(orderId, { tossPaymentKey: payment.paymentKey });
+  if (updated) await notifyHostPaid({ ...order, id: orderId }, user.name, '카드');
 
-  await notify(order.event.hostId, {
-    type: 'new_order',
-    title: '카드 결제가 완료됐어요',
-    body: `"${order.event.title}"에 ${user.name}님이 카드로 결제 완료했어요.`,
-    url: `/events/${order.eventId}`,
-  });
+  return NextResponse.json({ order: publicOrder(updated || order) });
+}
 
-  return NextResponse.json({ order: updated || order });
+function vaInfo(o) {
+  return { bank: o.vaBank, accountNumber: o.vaNumber, dueDate: o.vaDue, amount: o.amount };
+}
+function publicOrder(o) {
+  const { vaSecret, refundAccountEnc, ...rest } = o;
+  return rest;
 }

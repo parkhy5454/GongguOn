@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { NOTIFICATION_TYPES } from '@/lib/notificationTypes';
 import TwoFactorSettings from '@/components/TwoFactorSettings';
+import PushSettings from '@/components/PushSettings';
+import BlockedUsers from '@/components/BlockedUsers';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -12,6 +14,7 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState('');
   const [defaultAddress, setDefaultAddress] = useState('');
   const [email, setEmail] = useState('');
+  const [hasKakao, setHasKakao] = useState(false);
   const [savingInfo, setSavingInfo] = useState(false);
   const [infoMsg, setInfoMsg] = useState('');
 
@@ -53,7 +56,7 @@ export default function ProfilePage() {
     const res = await fetch('/api/me/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: deletePassword }),
+      body: JSON.stringify({ password: deletePassword, confirmText: deletePassword }),
     });
     const d = await res.json();
     setDeleting(false);
@@ -74,6 +77,7 @@ export default function ProfilePage() {
         setPhone(user.phone || '');
         setDefaultAddress(user.defaultAddress || '');
         setEmail(user.email || '');
+        setHasKakao(!!user.hasKakao);
         setMuted(user.mutedNotificationTypes || []);
       }
       setLoading(false);
@@ -230,6 +234,10 @@ export default function ProfilePage() {
         </form>
       </div>
 
+      <PushSettings />
+
+      <BlockedUsers />
+
       <TwoFactorSettings />
 
       <div className="card" style={{ maxWidth: 440, marginTop: 20 }}>
@@ -255,8 +263,8 @@ export default function ProfilePage() {
         ) : (
           <form onSubmit={deleteAccount}>
             <div className="field">
-              <label>본인 확인을 위해 비밀번호를 입력해주세요</label>
-              <input type="password" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} required />
+              <label>{hasKakao ? '본인 확인을 위해 "탈퇴합니다"를 입력하거나 비밀번호를 입력해주세요' : '본인 확인을 위해 비밀번호를 입력해주세요'}</label>
+              <input type={hasKakao ? 'text' : 'password'} value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} required />
             </div>
             {deleteMsg && <p className="error-text">{deleteMsg}</p>}
             <div style={{ display: 'flex', gap: 8 }}>

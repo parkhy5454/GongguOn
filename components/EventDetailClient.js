@@ -5,11 +5,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { io } from 'socket.io-client';
+import { compressImage } from '@/lib/imageCompress';
+import ShareButton from '@/components/ShareButton';
+import { BANKS } from '@/lib/banksList';
 
 const STATUS_LABEL = { OPEN: '진행중', CLOSED: '마감', CANCELLED: '취소됨', COMPLETED: '완료' };
 const STATUS_CLASS = { OPEN: 'badge-open', CLOSED: 'badge-closed', CANCELLED: 'badge-cancelled', COMPLETED: 'badge-completed' };
 const DELIVERY_LABEL = { PREPARING: '상품 준비중', SHIPPING: '배송중', DONE: '배송 완료' };
 const PAY_LABEL = { PENDING: '입금 대기', PAID: '입금 확인 요청', CONFIRMED: '결제 완료', REFUNDED: '환불됨' };
+const METHOD_LABEL = { CARD: '💳 카드', BANK_TRANSFER: '🏦 계좌이체', VIRTUAL_ACCOUNT: '🏦 가상계좌' };
 
 function formatDT(iso) {
   return new Date(iso).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -30,6 +34,17 @@ export default function EventDetailPage() {
   const [shippingAddress, setShippingAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CARD');
 
+  const [couponInput, setCouponInput] = useState('');
+  const [coupon, setCoupon] = useState(null); // { code, discount }
+  const [couponMsg, setCouponMsg] = useState('');
+  const [refundBank, setRefundBank] = useState('');
+  const [refundNumber, setRefundNumber] = useState('');
+  const [refundHolder, setRefundHolder] = useState('');
+  const [blockedIds, setBlockedIds] = useState([]);
+  const blockedRef = useRef([]);
+  const [importMsg, setImportMsg] = useState('');
+  const [importing, setImporting] = useState(false);
+  const csvInputRef = useRef(null);
   const [depositorName, setDepositorName] = useState('');
   const [paying, setPaying] = useState(false);
 
@@ -91,6 +106,12 @@ export default function EventDetailPage() {
         setMyPointBalance(me.pointBalance || 0);
         if (me.defaultAddress) setShippingAddress(me.defaultAddress);
       }
+      const bRes = await fetch('/api/blocks');
+      if (bRes.ok) {
+        const ids = (await bRes.json()).blocks.map((b) => b.userId);
+        blockedRef.current = ids;
+        setBlockedIds(ids);
+      }
     })();
 
     const reloadMessages = async () => {
@@ -114,6 +135,7 @@ export default function EventDetailPage() {
     });
 
     socket.on('new-message', (msg) => {
+      if (msg?.author?.id && blockedRef.current.includes(msg.author.id)) return;
       setMessages((prev) => [...prev, msg]);
       fetch(`/api/events/${id}/read`, { method: 'POST' }).catch(() => {});
     });
@@ -139,7 +161,11 @@ export default function EventDetailPage() {
     const res = await fetch(`/api/events/${id}/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ optionId: selectedOption, quantity: qty, usePoints: useMyPoints, shippingAddress, paymentMethod }),
+      body: JSON.stringify({
+        optionId: selectedOption, quantity: qty, usePoints: useMyPoints, shippingAddress, paymentMethod,
+        couponCode: coupon?.code || undefined,
+        refundAccount: paymentMethod === 'VIRTUAL_ACCOUNT' ? { bank: refundBank, accountNumber: refundNumber, holderName: refundHolder } : undefined,
+      }),
     });
     const d = await res.json();
     if (!res.ok) {
@@ -147,13 +173,15 @@ export default function EventDetailPage() {
       setError(d.error || '참여에 실패했습니다.');
       return;
     }
-    if (paymentMethod === 'CARD') {
-      // 토스 결제창으로 이동 (계좌이체는 바로 완료, 카드는 결제창을 거쳐야 함)
+    if (paymentMethod === 'CARD' || paymentMethod === 'VIRTUAL_ACCOUNT') {
+      // 토스 결제창으로 이동 (카드/가상계좌는 결제창을 거쳐야 함, 계좌이체는 바로 완료)
       router.push(`/checkout/${d.order.id}`);
       return;
     }
     setJoining(false);
     setUseMyPoints(false);
+    setCoupon(null);
+    setCouponInput('');
     await loadEvent();
   }
 
@@ -211,7 +239,7 @@ export default function EventDetailPage() {
     if (!file) return;
     setChatImage({ url: null, uploading: true });
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('file', await compressImage(file));
     const res = await fetch('/api/upload', { method: 'POST', body: fd });
     const data = await res.json();
     if (res.ok) {
@@ -240,7 +268,7 @@ export default function EventDetailPage() {
     if (!file) return;
     setReviewImageUploading(true);
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('file', await compressImage(file));
     const res = await fetch('/api/upload', { method: 'POST', body: fd });
     const data = await res.json();
     if (res.ok) setReviewImage(data.url);
@@ -305,6 +333,81 @@ export default function EventDetailPage() {
     if (res.ok) await loadEvent();
   }
 
+  async function applyCoupon() {
+    setCouponMsg('');
+    if (!couponInput.trim()) return;
+    const res = await fetch('/api/coupons/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: couponInput, amount: Math.max(1, discountedUnitPrice * qty) }),
+    });
+    const d = await res.json();
+    if (res.ok) {
+      setCoupon({ code: d.code, discount: d.discount });
+      setCouponMsg(`쿠폰 적용: ${d.discount.toLocaleString()}원 할인`);
+    } else {
+      setCoupon(null);
+      setCouponMsg(d.error || '쿠폰을 적용할 수 없어요.');
+    }
+  }
+
+  async function buyerCancel() {
+    if (!confirm('참여를 취소하시겠어요? 결제하셨다면 환불되고, 사용한 포인트·쿠폰이 돌아옵니다.')) return;
+    const res = await fetch(`/api/orders/${data.myOrder.id}/cancel`, { method: 'POST' });
+    const d = await res.json().catch(() => ({}));
+    if (res.ok) await loadEvent();
+    else alert(d.error || '취소에 실패했어요.');
+  }
+
+  async function blockUser(userId, name) {
+    if (!confirm(`${name}님을 차단할까요? 이 사람의 채팅 메시지가 보이지 않게 돼요. (내 정보에서 해제 가능)`)) return;
+    const res = await fetch('/api/blocks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    if (res.ok) {
+      const ids = [...blockedRef.current, userId];
+      blockedRef.current = ids;
+      setBlockedIds(ids);
+      setMessages((prev) => prev.filter((m) => m.author.id !== userId));
+    }
+  }
+
+  async function decodeCsvFile(file) {
+    const buf = await file.arrayBuffer();
+    let text = new TextDecoder('utf-8').decode(buf);
+    if (text.includes('\uFFFD')) text = new TextDecoder('euc-kr').decode(buf);
+    return text;
+  }
+
+  async function importTracking(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportMsg('');
+    try {
+      const csv = await decodeCsvFile(file);
+      const res = await fetch(`/api/events/${id}/tracking-import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csv }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        const sk = d.skipped || [];
+        setImportMsg(`송장 ${d.updated ?? 0}건 등록` + (sk.length ? `, ${sk.length}건 건너뜀 (${sk.slice(0, 3).map((x) => `${x.line}행: ${x.reason}`).join(' / ')})` : ''));
+        await loadEvent();
+      } else {
+        setImportMsg(d.error || '등록에 실패했어요.');
+      }
+    } catch {
+      setImportMsg('파일을 읽지 못했어요.');
+    }
+    setImporting(false);
+    if (csvInputRef.current) csvInputRef.current.value = '';
+  }
+
   async function toggleFavorite() {
     const res = await fetch(`/api/events/${id}/favorite`, { method: 'POST' });
     if (res.ok) await loadEvent();
@@ -336,10 +439,21 @@ export default function EventDetailPage() {
           <h1>{event.title}</h1>
           <p>
             <Link href={`/sellers/${event.host.id}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>{event.host.name}</Link>
+            {event.host.sellerVerified && <span title="운영진이 확인한 판매자" style={{ marginLeft: 4, fontSize: 11.5, color: '#1a7f4b', fontWeight: 700 }}>✅ 인증 판매자</span>}
             {hostRating.avg ? ` · ⭐ ${hostRating.avg.toFixed(1)} (${hostRating.count}건)` : ' · 신규 판매자'}
             {' · 마감 '}{formatDT(event.deadline)}
             {' · '}{DELIVERY_LABEL[event.deliveryStatus]}
           </p>
+          <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+            <ShareButton
+              title={event.title}
+              description={`${event.host.name} 공구 · ${event.options?.[0] ? event.options[0].price.toLocaleString() + '원~' : ''}`}
+              imageUrl={event.images?.[0] ? (event.images[0].startsWith('http') ? event.images[0] : undefined) : undefined}
+            />
+            {isHost && (
+              <Link href={`/events/new?copy=${id}`} className="btn btn-ghost btn-sm">📄 복사해서 다시 열기</Link>
+            )}
+          </div>
           {!isHost && (
             <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
               <button className={`btn btn-sm ${isFavorited ? 'btn-primary' : 'btn-ghost'}`} onClick={toggleFavorite}>
@@ -451,7 +565,30 @@ export default function EventDetailPage() {
                           <input type="radio" name="pm" checked={paymentMethod === 'BANK_TRANSFER'} onChange={() => setPaymentMethod('BANK_TRANSFER')} style={{ width: 'auto' }} />
                           🏦 계좌이체 (직접 입금)
                         </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
+                          <input type="radio" name="pm" checked={paymentMethod === 'VIRTUAL_ACCOUNT'} onChange={() => setPaymentMethod('VIRTUAL_ACCOUNT')} style={{ width: 'auto' }} />
+                          🧾 가상계좌 (자동 확인)
+                        </label>
                       </div>
+                    </div>
+                    {paymentMethod === 'VIRTUAL_ACCOUNT' && (
+                      <div className="field" style={{ marginBottom: 10, background: 'var(--bg-input)', padding: 10, borderRadius: 8 }}>
+                        <label>환불 받을 계좌 <span style={{ fontWeight: 400, color: 'var(--text-dim)' }}>(가상계좌는 환불 시 필요해요. 암호화 저장되며 처리 후 삭제돼요)</span></label>
+                        <select value={refundBank} onChange={(e) => setRefundBank(e.target.value)} required>
+                          <option value="">은행 선택</option>
+                          {BANKS.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
+                        </select>
+                        <input style={{ marginTop: 6 }} placeholder="계좌번호 (숫자만)" inputMode="numeric" value={refundNumber} onChange={(e) => setRefundNumber(e.target.value)} required />
+                        <input style={{ marginTop: 6 }} placeholder="예금주명" value={refundHolder} onChange={(e) => setRefundHolder(e.target.value)} required />
+                      </div>
+                    )}
+                    <div className="field" style={{ marginBottom: 10 }}>
+                      <label>쿠폰 코드 (선택)</label>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <input value={couponInput} onChange={(e) => { setCouponInput(e.target.value); setCoupon(null); setCouponMsg(''); }} placeholder="쿠폰 코드" />
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={applyCoupon}>적용</button>
+                      </div>
+                      {couponMsg && <p style={{ fontSize: 12, margin: '4px 0 0', color: coupon ? 'var(--success)' : 'var(--danger)' }}>{couponMsg}</p>}
                     </div>
                     {myPointBalance > 0 && (
                       <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 10 }}>
@@ -465,11 +602,14 @@ export default function EventDetailPage() {
                       </label>
                     )}
                     <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 10 }}>
-                      최종 결제 금액: {Math.max(0, discountedUnitPrice * qty - (useMyPoints ? Math.min(myPointBalance, discountedUnitPrice * qty) : 0)).toLocaleString()}원
+                      최종 결제 금액: {(() => {
+                        const base = discountedUnitPrice * qty - (coupon?.discount || 0);
+                        return Math.max(0, base - (useMyPoints ? Math.min(myPointBalance, Math.max(0, base)) : 0)).toLocaleString();
+                      })()}원
                     </div>
                     {error && <p className="error-text">{error}</p>}
                     <button className="btn btn-primary btn-block" type="submit" disabled={joining || remaining < 1}>
-                      {remaining < 1 ? '품절' : joining ? '처리 중…' : paymentMethod === 'CARD' ? '카드로 결제하기' : '계좌이체로 참여하기'}
+                      {remaining < 1 ? '품절' : joining ? '처리 중…' : paymentMethod === 'CARD' ? '카드로 결제하기' : paymentMethod === 'VIRTUAL_ACCOUNT' ? '가상계좌 발급받기' : '계좌이체로 참여하기'}
                     </button>
                   </form>
                 )}
@@ -483,7 +623,15 @@ export default function EventDetailPage() {
                     <div style={{ fontSize: 13, marginBottom: 8 }}>
                       결제 금액: {myOrder.amount.toLocaleString()}원
                       {myOrder.pointsUsed > 0 && ` (포인트 ${myOrder.pointsUsed.toLocaleString()}P 사용)`}
+                      {myOrder.couponDiscount > 0 && ` (쿠폰 ${myOrder.couponDiscount.toLocaleString()}원 할인)`}
                     </div>
+                    {myOrder.paymentStatus === 'PENDING' && myOrder.paymentMethod === 'VIRTUAL_ACCOUNT' && myOrder.vaNumber && (
+                      <div style={{ fontSize: 13, background: '#fff', border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 8, lineHeight: 1.7 }}>
+                        🏦 <b>{myOrder.vaBank} {myOrder.vaNumber}</b><br />
+                        입금액 {myOrder.amount.toLocaleString()}원{myOrder.vaDue && <> · 기한 {formatDT(myOrder.vaDue)}</>}<br />
+                        <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>입금하면 자동으로 결제완료 처리돼요.</span>
+                      </div>
+                    )}
                     {myOrder.shippingAddress && (
                       <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 8 }}>
                         📦 배송지: {myOrder.shippingAddress}
@@ -502,7 +650,7 @@ export default function EventDetailPage() {
                         </button>
                       </form>
                     )}
-                    {myOrder.paymentStatus === 'PENDING' && myOrder.paymentMethod === 'CARD' && (
+                    {myOrder.paymentStatus === 'PENDING' && (myOrder.paymentMethod === 'CARD' || (myOrder.paymentMethod === 'VIRTUAL_ACCOUNT' && !myOrder.vaNumber)) && (
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button className="btn btn-primary btn-sm" onClick={() => router.push(`/checkout/${myOrder.id}`)}>
                           💳 결제 이어서 하기
@@ -511,6 +659,12 @@ export default function EventDetailPage() {
                           참여 취소
                         </button>
                       </div>
+                    )}
+                    {myOrder.paymentStatus === 'PENDING' && myOrder.paymentMethod === 'VIRTUAL_ACCOUNT' && myOrder.vaNumber && (
+                      <button className="btn btn-ghost btn-sm" onClick={buyerCancel}>참여 취소</button>
+                    )}
+                    {myOrder.paymentStatus === 'CONFIRMED' && !myOrder.trackingNumber && event.status === 'OPEN' && !deadlinePassed && (myOrder.paymentMethod === 'CARD' || myOrder.paymentMethod === 'VIRTUAL_ACCOUNT') && (
+                      <button className="btn btn-ghost btn-sm" onClick={buyerCancel}>참여 취소 (환불)</button>
                     )}
                     {myOrder.paymentStatus === 'PAID' && (
                       <p style={{ fontSize: 12.5, color: 'var(--text-dim)', margin: 0 }}>
@@ -573,13 +727,18 @@ export default function EventDetailPage() {
                   <button className="btn btn-ghost btn-sm" onClick={sendReminder} disabled={reminding}>
                     {reminding ? '전송 중…' : '📩 미입금 리마인드 보내기'}
                   </button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => csvInputRef.current?.click()} disabled={importing}>
+                    {importing ? '등록 중…' : '📤 송장 CSV 일괄등록'}
+                  </button>
+                  <input ref={csvInputRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={importTracking} />
                 </div>
               </div>
+              {importMsg && <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>{importMsg} <span>(CSV의 택배사·송장번호 열을 채워 올려주세요)</span></p>}
               {remindMsg && <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>{remindMsg}</p>}
 
               {orders?.length > 0 && (
                 <div style={{ display: 'flex', gap: 16, margin: '12px 0', fontSize: 12.5, color: 'var(--text-dim)' }}>
-                  <span>확정 매출: <strong style={{ color: 'var(--text)' }}>{orders.filter((o) => o.paymentStatus === 'CONFIRMED').reduce((s, o) => s + o.amount, 0).toLocaleString()}원</strong></span>
+                  <span>확정 매출: <strong style={{ color: 'var(--text)' }}>{orders.filter((o) => o.paymentStatus === 'CONFIRMED').reduce((s, o) => s + o.amount + (o.couponDiscount || 0), 0).toLocaleString()}원</strong></span>
                   <span>입금 대기중: <strong style={{ color: 'var(--text)' }}>{orders.filter((o) => o.paymentStatus !== 'CONFIRMED').reduce((s, o) => s + o.amount, 0).toLocaleString()}원</strong></span>
                 </div>
               )}
@@ -589,7 +748,7 @@ export default function EventDetailPage() {
                 <div key={o.id} className="order-row" style={{ flexWrap: 'wrap' }}>
                   <span style={{ flex: 1, minWidth: 200 }}>
                     {o.buyer.name} · {o.option.name} × {o.quantity}개 · {o.amount.toLocaleString()}원
-                    {' · '}{o.paymentMethod === 'CARD' ? '💳 카드' : '🏦 계좌이체'}
+                    {' · '}{METHOD_LABEL[o.paymentMethod] || o.paymentMethod}
                     {o.shippingAddress && (
                       <div style={{ fontSize: 11.5, color: 'var(--text-dim)', marginTop: 2 }}>📦 {o.shippingAddress}</div>
                     )}
@@ -681,6 +840,9 @@ export default function EventDetailPage() {
             {messages.map((m) => (
               <div key={m.id} className="chat-msg">
                 <span className="who">{m.author.name}</span>
+                {m.author.id !== data.meId && m.author.id !== event.host.id && (
+                  <button type="button" title="차단" onClick={() => blockUser(m.author.id, m.author.name)} style={{ border: 0, background: 'transparent', cursor: 'pointer', fontSize: 11, color: 'var(--text-dim)', marginRight: 4 }}>🚫</button>
+                )}
                 {m.content}
                 <span className="time">{formatDT(m.createdAt)}</span>
                 {m.imageUrl && (

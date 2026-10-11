@@ -57,6 +57,7 @@ export default function MyPage() {
           <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--accent)' }}>{(me?.pointBalance || 0).toLocaleString()}P</div>
         </div>
         <div style={{ fontSize: 12.5, color: 'var(--text-dim)' }}>
+          <Link href="/my/sales" className="btn btn-ghost btn-sm" style={{ marginRight: 8 }}>📊 내 매출·정산</Link>
           친구가 내 초대 링크로 가입 후 첫 구매/첫 공구를 열면 포인트가 쌓여요. 상단 "🎁 친구 초대" 버튼을 눌러보세요.
         </div>
       </div>
@@ -75,7 +76,7 @@ export default function MyPage() {
 
       {tab === 'orders' && (
         <div className="card">
-          {myOrders.length === 0 && <div className="empty-state">아직 참여한 공구가 없어요.</div>}
+          {myOrders.length === 0 && <div className="empty-state">아직 참여한 공구가 없어요.<div style={{ marginTop: 10 }}><Link href="/events" className="btn btn-primary btn-sm">공구 구경하기</Link></div></div>}
           {myOrders.map((o) => (
             <Link key={o.id} href={`/events/${o.event.id}`} className="order-row" style={{ textDecoration: 'none', color: 'inherit' }}>
               <span style={{ flex: 1 }}>
@@ -90,7 +91,7 @@ export default function MyPage() {
 
       {tab === 'hosted' && (
         <div className="grid-cards">
-          {hosted.length === 0 && <div className="empty-state">아직 개설한 공구가 없어요.</div>}
+          {hosted.length === 0 && <div className="empty-state">아직 개설한 공구가 없어요.<div style={{ marginTop: 10 }}><Link href="/events/new" className="btn btn-primary btn-sm">첫 공구 열기</Link></div></div>}
           {hosted.map((ev) => {
             const totalSold = ev.options.reduce((s, o) => s + o.soldCount, 0);
             return (
@@ -99,7 +100,14 @@ export default function MyPage() {
                   <h3>{ev.title}</h3>
                   <span className={`badge ${STATUS_CLASS[ev.status]}`}>{STATUS_LABEL[ev.status]}</span>
                 </div>
-                <div className="meta-row"><span>누적 판매 {totalSold}개</span></div>
+                <div className="meta-row">
+                  <span>누적 판매 {totalSold}개</span>
+                  <span
+                    role="link"
+                    style={{ color: 'var(--accent)', fontWeight: 600 }}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.location.href = `/events/new?copy=${ev.id}`; }}
+                  >📄 복사해서 열기</span>
+                </div>
               </Link>
             );
           })}

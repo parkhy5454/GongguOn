@@ -1,8 +1,9 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { CATEGORIES } from '@/lib/categories';
+import { compressImage } from '@/lib/imageCompress';
 
 function defaultDeadline() {
   const d = new Date();
@@ -13,7 +14,18 @@ function defaultDeadline() {
 }
 
 export default function NewEventPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewEventForm />
+    </Suspense>
+  );
+}
+
+function NewEventForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const copyId = searchParams.get('copy');
+  const [copied, setCopied] = useState(false);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('식품');
   const [description, setDescription] = useState('');
@@ -29,6 +41,27 @@ export default function NewEventPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiMsg, setAiMsg] = useState('');
 
+  // 지난 공구 복사: ?copy=공구ID (본인이 연 공구만)
+  useEffect(() => {
+    if (!copyId) return;
+    (async () => {
+      const res = await fetch(`/api/events/${copyId}`);
+      if (!res.ok) return;
+      const d = await res.json();
+      if (!d.isHost) return;
+      const ev = d.event;
+      setTitle(ev.title || '');
+      setCategory(ev.category || '식품');
+      setDescription(ev.description || '');
+      setMinQuantity(ev.minQuantity || 10);
+      setAiAutoReply(!!ev.aiAutoReply);
+      setOptions((ev.options || []).map((o) => ({ name: o.name, price: String(o.price), stock: String(o.stock), imageUrl: o.imageUrl || undefined })));
+      setDiscountTiers((ev.discountTiers || []).map((t) => ({ minParticipants: String(t.minParticipants), discountPercent: String(t.discountPercent) })));
+      setImages((ev.images || []).map((url, i) => ({ id: `copy-${i}`, url, preview: url, uploading: false, error: false })));
+      setCopied(true);
+    })();
+  }, [copyId]);
+
   async function handleFiles(e) {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -40,7 +73,7 @@ export default function NewEventPage() {
       const file = files[i];
       const placeholderId = placeholders[i].id;
       const fd = new FormData();
-      fd.append('file', file);
+      fd.append('file', await compressImage(file));
       try {
         const res = await fetch('/api/upload', { method: 'POST', body: fd });
         const data = await res.json();
@@ -110,7 +143,7 @@ export default function NewEventPage() {
     if (!file || idx === null) return;
     setOptionImageUploading(idx);
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('file', await compressImage(file));
     const res = await fetch('/api/upload', { method: 'POST', body: fd });
     const data = await res.json();
     if (res.ok) updateOption(idx, 'imageUrl', data.url);
@@ -163,7 +196,7 @@ export default function NewEventPage() {
       <div className="page-header">
         <div>
           <h1>공구 등록</h1>
-          <p>제목, 옵션별 가격/수량, 마감일을 입력하면 바로 개설돼요</p>
+          <p>{copied ? '지난 공구 내용을 불러왔어요. 마감일을 확인하고 필요한 부분만 고쳐주세요.' : '제목, 옵션별 가격/수량, 마감일을 입력하면 바로 개설돼요'}</p>
         </div>
       </div>
 

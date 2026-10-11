@@ -11,11 +11,14 @@ export default function SellerStorefrontPage() {
   const { id } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
     (async () => {
       const res = await fetch(`/api/sellers/${id}`);
       if (res.ok) setData(await res.json());
+      const b = await fetch('/api/blocks');
+      if (b.ok) setBlocked((await b.json()).blocks.some((x) => x.userId === id));
       setLoading(false);
     })();
   }, [id]);
@@ -24,6 +27,14 @@ export default function SellerStorefrontPage() {
   if (!data) return <div className="empty-state">판매자를 찾을 수 없어요.</div>;
 
   const { seller, events, rating, reviews, followerCount, isFollowing, isMe } = data;
+
+  async function toggleBlock() {
+    if (!blocked && !confirm(`${seller.name}님을 차단할까요? 이 판매자의 공구가 목록에서 숨겨지고 채팅 메시지가 보이지 않아요.`)) return;
+    const res = blocked
+      ? await fetch(`/api/blocks?userId=${id}`, { method: 'DELETE' })
+      : await fetch('/api/blocks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: id }) });
+    if (res.ok) setBlocked(!blocked);
+  }
 
   async function toggleFollow() {
     const res = await fetch(`/api/sellers/${id}/follow`, { method: 'POST' });
@@ -37,7 +48,7 @@ export default function SellerStorefrontPage() {
     <>
       <div className="page-header">
         <div>
-          <h1>{seller.name}님의 상점</h1>
+          <h1>{seller.name}님의 상점{seller.sellerVerified && <span style={{ marginLeft: 8, fontSize: 13, color: '#1a7f4b' }}>✅ 인증 판매자</span>}</h1>
           <p>
             {rating.avg ? `⭐ ${rating.avg.toFixed(1)} (후기 ${rating.count}건)` : '아직 받은 후기가 없어요'}
             {' · 개설한 공구 '}{events.length}건{' · 팔로워 '}{followerCount}명
@@ -45,6 +56,11 @@ export default function SellerStorefrontPage() {
           {!isMe && (
             <button className={`btn btn-sm ${isFollowing ? 'btn-primary' : 'btn-ghost'}`} onClick={toggleFollow} style={{ marginTop: 6 }}>
               {isFollowing ? '✓ 팔로잉' : '+ 팔로우'}
+            </button>
+          )}
+          {!isMe && (
+            <button className="btn btn-ghost btn-sm" onClick={toggleBlock} style={{ marginTop: 6, marginLeft: 6 }}>
+              {blocked ? '차단 해제' : '🚫 차단'}
             </button>
           )}
         </div>

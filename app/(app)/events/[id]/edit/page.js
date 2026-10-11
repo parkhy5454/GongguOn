@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { CATEGORIES } from '@/lib/categories';
+import { compressImage } from '@/lib/imageCompress';
 
 export default function EditEventPage() {
   const { id } = useParams();
@@ -49,7 +50,7 @@ export default function EditEventPage() {
     const files = Array.from(e.target.files || []);
     for (const file of files) {
       const fd = new FormData();
-      fd.append('file', file);
+      fd.append('file', await compressImage(file));
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
       const data = await res.json();
       if (res.ok) setImages((prev) => [...prev, data.url]);

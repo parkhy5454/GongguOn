@@ -4,6 +4,11 @@ import { getCurrentUser } from '@/lib/authServer';
 import { applicableDiscount, priceWithDiscount } from '@/lib/pricing';
 import { notify } from '@/lib/notify';
 import { LIMITS, tooLong } from '@/lib/limits';
+import { normalizeCode, calcCouponDiscount } from '@/lib/coupon';
+import { validateRefundAccount, encryptAccount } from '@/lib/banks';
+
+// 카드·가상계좌 같은 온라인 결제는 결제 금액이 최소 100원은 되어야 해요 (토스 결제 조건)
+const MIN_ONLINE_AMOUNT = 100;
 
 export async function POST(req, { params: paramsPromise }) {
   const params = await paramsPromise;
@@ -22,7 +27,7 @@ export async function POST(req, { params: paramsPromise }) {
     return NextResponse.json({ error: '본인이 개설한 공구에는 참여할 수 없어요.' }, { status: 400 });
   }
 
-  const { optionId, quantity, usePoints, shippingAddress, paymentMethod } = await req.json();
+  const { optionId, quantity, usePoints, shippingAddress, paymentMethod, couponCode, refundAccount } = await req.json();
   const qty = Number(quantity);
   if (!optionId || !qty || qty < 1) {
     return NextResponse.json({ error: '옵션과 수량을 확인해주세요.' }, { status: 400 });
@@ -33,12 +38,21 @@ export async function POST(req, { params: paramsPromise }) {
   if (tooLong(shippingAddress, LIMITS.addressLine)) {
     return NextResponse.json({ error: `배송지는 ${LIMITS.addressLine}자 이내로 입력해주세요.` }, { status: 400 });
   }
-  const method = paymentMethod === 'CARD' ? 'CARD' : 'BANK_TRANSFER';
-  if (method === 'CARD' && !user.emailVerifiedAt) {
+  const method = paymentMethod === 'CARD' ? 'CARD' : paymentMethod === 'VIRTUAL_ACCOUNT' ? 'VIRTUAL_ACCOUNT' : 'BANK_TRANSFER';
+  const isOnline = method !== 'BANK_TRANSFER';
+  if (isOnline && !user.emailVerifiedAt) {
     return NextResponse.json(
-      { error: '카드 결제는 이메일 인증 후 이용할 수 있어요. 상단 배너에서 인증 메일을 확인해주세요. (계좌이체는 바로 이용 가능해요)' },
+      { error: '카드·가상계좌 결제는 이메일 인증 후 이용할 수 있어요. 상단 배너에서 인증 메일을 확인해주세요. (계좌이체는 바로 이용 가능해요)' },
       { status: 403 }
     );
+  }
+
+  // 가상계좌는 나중에 환불이 필요할 때를 대비해 환불 받을 계좌를 미리 받아 암호화해서 보관
+  let refundAccountEnc = null;
+  if (method === 'VIRTUAL_ACCOUNT') {
+    const v = validateRefundAccount(refundAccount);
+    if (v.error) return NextResponse.json({ error: v.error }, { status: 400 });
+    refundAccountEnc = encryptAccount(v.account);
   }
 
   let order;
@@ -70,9 +84,29 @@ export async function POST(req, { params: paramsPromise }) {
 
       const buyer = await tx.user.findUnique({ where: { id: user.id } });
       const rawAmount = unitPrice * qty;
+      const minPay = isOnline ? MIN_ONLINE_AMOUNT : 0;
+
+      // 쿠폰 적용 (사용 가능 횟수는 DB에서 원자적으로 확인·증가)
+      let couponDiscount = 0;
+      let coupon = null;
+      const code = normalizeCode(couponCode);
+      if (code) {
+        coupon = await tx.coupon.findUnique({ where: { code } });
+        const calc = calcCouponDiscount(coupon, rawAmount);
+        if (!calc.ok) throw new Error(calc.error);
+        couponDiscount = Math.min(calc.discount, Math.max(0, rawAmount - minPay));
+        if (couponDiscount <= 0) throw new Error('결제 금액이 너무 낮아서 쿠폰을 쓸 수 없어요.');
+        const used = await tx.$executeRaw`
+          UPDATE "Coupon" SET "usedCount" = "usedCount" + 1
+          WHERE "id" = ${coupon.id} AND ("maxUses" IS NULL OR "usedCount" < "maxUses")
+        `;
+        if (used === 0) throw new Error('쿠폰이 모두 소진됐어요.');
+      }
+      const afterCoupon = rawAmount - couponDiscount;
+
       let pointsToUse = 0;
       if (usePoints) {
-        pointsToUse = Math.min(buyer.pointBalance, rawAmount);
+        pointsToUse = Math.max(0, Math.min(buyer.pointBalance, afterCoupon - minPay));
       }
 
       if (pointsToUse > 0) {
@@ -82,22 +116,34 @@ export async function POST(req, { params: paramsPromise }) {
         });
       }
 
-      return tx.order.create({
+      const created = await tx.order.create({
         data: {
           eventId: params.id,
           optionId,
           buyerId: user.id,
           quantity: qty,
-          amount: rawAmount - pointsToUse,
+          amount: afterCoupon - pointsToUse,
           discountPercent,
           pointsUsed: pointsToUse,
+          couponCode: coupon ? coupon.code : null,
+          couponDiscount,
           shippingAddress: shippingAddress.trim(),
           paymentMethod: method,
+          refundAccountEnc,
         },
         include: { option: true },
       });
+      if (coupon) {
+        await tx.couponRedemption.create({
+          data: { couponId: coupon.id, userId: user.id, orderId: created.id, discount: couponDiscount },
+        });
+      }
+      return created;
     });
   } catch (err) {
+    if (err.code === 'P2002') {
+      return NextResponse.json({ error: '이미 사용한 쿠폰이에요. (쿠폰은 1인 1회 사용할 수 있어요)' }, { status: 400 });
+    }
     return NextResponse.json({ error: err.message || '참여에 실패했습니다.' }, { status: 400 });
   }
 
@@ -114,5 +160,6 @@ export async function POST(req, { params: paramsPromise }) {
     });
   }
 
-  return NextResponse.json({ order });
+  const { refundAccountEnc: _r, vaSecret: _v, ...safeOrder } = order;
+  return NextResponse.json({ order: safeOrder });
 }

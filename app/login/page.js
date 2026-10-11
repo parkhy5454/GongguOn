@@ -1,12 +1,29 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Turnstile, { captchaEnabled } from '@/components/Turnstile';
+import KakaoButton from '@/components/KakaoButton';
 
-export default function LoginPage() {
+const ERROR_TEXT = {
+  kakao_off: '카카오 로그인이 아직 준비되지 않았어요. 이메일로 로그인해주세요.',
+  kakao_cancel: '카카오 로그인이 취소됐어요.',
+  kakao_state: '카카오 로그인 확인에 실패했어요. 다시 시도해주세요.',
+  kakao_fail: '카카오 로그인에 실패했어요. 잠시 후 다시 시도해주세요.',
+  too_many: '시도가 너무 많아요. 잠시 후 다시 시도해주세요.',
+  deleted: '탈퇴한 계정이에요.',
+  use_password: '이 계정은 보안을 위해 이메일·비밀번호로만 로그인할 수 있어요.',
+};
+
+function safeNext(n) {
+  return typeof n === 'string' && n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/\\') ? n : '/events';
+}
+
+function LoginForm() {
   const router = useRouter();
+  const sp = useSearchParams();
+  const next = safeNext(sp.get('next'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [needTotp, setNeedTotp] = useState(false);
@@ -14,7 +31,7 @@ export default function LoginPage() {
   const [ticket, setTicket] = useState('');
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaReset, setCaptchaReset] = useState(0);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(ERROR_TEXT[sp.get('error')] || '');
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e) {
@@ -49,7 +66,7 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
-    router.push('/events');
+    router.push(next);
     router.refresh();
   }
 
@@ -58,6 +75,7 @@ export default function LoginPage() {
       <div className="auth-card">
         <h1>공구온</h1>
         <p className="sub">정산·재고·신뢰까지, 공동구매 전용 플랫폼</p>
+        {!needTotp && <KakaoButton next={next} label="카카오로 시작하기" />}
         <form onSubmit={onSubmit}>
           <div className="field">
             <label>이메일</label>
@@ -93,9 +111,17 @@ export default function LoginPage() {
           </button>
         </form>
         <p className="hint">
-          계정이 없으신가요? <Link href="/register" style={{ color: 'var(--accent)' }}>회원가입</Link>
+          계정이 없으신가요? <Link href={next !== '/events' ? `/register?next=${encodeURIComponent(next)}` : '/register'} style={{ color: 'var(--accent)' }}>회원가입</Link>
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

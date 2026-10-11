@@ -8,12 +8,15 @@ export default function PrivacyPage() {
   return (
     <div className="page" style={{ maxWidth: 720, margin: '0 auto' }}>
       <h1>개인정보처리방침</h1>
-      <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>시행일: 2026년 10월 11일 (개정)</p>
+      <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>시행일: 2026년 10월 12일 (개정)</p>
 
       <h3>1. 수집하는 개인정보 항목</h3>
       <p>
         <strong>회원가입 시(필수)</strong>: 이메일, 이름(닉네임), 휴대폰 번호, 비밀번호(복호화할 수 없도록 암호화하여 저장).<br />
         <strong>서비스 이용 중</strong>: 배송지 주소(주문 시 입력), 주문·결제 내역, 공구 채팅 내용, 등록한 상품 사진, 후기·평점, 신고·문의 내용.<br />
+        <strong>카카오 로그인 이용 시</strong>: 카카오 회원번호, 닉네임, 이메일(제공 동의 시). 비밀번호는 카카오가 관리하며 회사는 카카오 계정 비밀번호를 알 수 없습니다.<br />
+        <strong>가상계좌 결제 시</strong>: 환불 계좌 정보(은행, 계좌번호, 예금주). 암호화하여 보관하며 환불 처리·주문 완료 후 지체 없이 삭제합니다.<br />
+        <strong>쿠폰 이용 시</strong>: 쿠폰 사용 내역. <strong>푸시 알림 허용 시</strong>: 브라우저 푸시 구독 정보(알림 전송용 식별값, 언제든 해제 가능). <strong>사용자 차단 시</strong>: 차단 목록.<br />
         <strong>자동 처리되는 정보</strong>: 로그인 실패 기록, 접속 IP 및 요청 횟수(부정 이용·무차별 대입 공격 방지 목적, 단기간만 보관).<br />
         카드 결제 시 카드 정보는 회사가 직접 저장하지 않으며 결제대행사(토스페이먼츠)가 처리합니다.
       </p>
@@ -33,7 +36,8 @@ export default function PrivacyPage() {
       <h3>4. 개인정보 처리 위탁 및 국외 이전</h3>
       <p>회사는 서비스 제공을 위해 아래 업체에 업무를 위탁하며, 일부 업체는 해외 서버에서 정보를 처리합니다. 위탁받은 업체는 각자의 목적 범위 내에서만 정보를 처리합니다.</p>
       <ul>
-        <li><strong>토스페이먼츠</strong>: 카드 결제 처리 (결제 정보)</li>
+        <li><strong>토스페이먼츠</strong>: 카드·가상계좌 결제 및 환불 처리 (결제 정보, 환불 계좌)</li>
+        <li><strong>카카오</strong>: 카카오 로그인 및 카카오톡 공유 (이용자가 선택한 경우)</li>
         <li><strong>Cloudinary</strong>: 상품 사진 저장·전송 (업로드한 이미지)</li>
         <li><strong>Resend</strong>: 인증·알림 이메일 발송 (이메일 주소, 이름)</li>
         <li><strong>Render(미국), Neon(싱가포르)</strong>: 서버 운영 및 데이터베이스 보관 (서비스 전반의 데이터)</li>

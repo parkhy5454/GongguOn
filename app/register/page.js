@@ -4,11 +4,14 @@ import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Turnstile, { captchaEnabled } from '@/components/Turnstile';
+import KakaoButton from '@/components/KakaoButton';
 
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const ref = searchParams.get('ref');
+  const rawNext = searchParams.get('next');
+  const next = typeof rawNext === 'string' && rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.startsWith('/\\') ? rawNext : '/events';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -47,7 +50,7 @@ function RegisterForm() {
       setLoading(false);
       return;
     }
-    router.push('/events');
+    router.push(next);
     router.refresh();
   }
 
@@ -56,6 +59,7 @@ function RegisterForm() {
       <div className="auth-card">
         <h1>공구온 시작하기</h1>
         <p className="sub">30초면 가입이 끝나요 — 구매자로도, 판매자로도 바로 활동 가능</p>
+        <KakaoButton next={next} refCode={ref} />
         <form onSubmit={onSubmit}>
           <div className="field">
             <label>이름 / 닉네임</label>

@@ -21,7 +21,7 @@ export async function GET() {
     if (!bySeller[key]) {
       bySeller[key] = { seller: o.event.host, totalAmount: 0, orderCount: 0, events: new Set() };
     }
-    bySeller[key].totalAmount += o.amount;
+    bySeller[key].totalAmount += o.amount + (o.couponDiscount || 0); // 쿠폰 할인분은 공구온이 부담
     bySeller[key].orderCount += 1;
     bySeller[key].events.add(o.event.title);
   }
@@ -37,13 +37,13 @@ export async function GET() {
 
   const settledAgg = await prisma.order.aggregate({
     where: { paymentStatus: 'CONFIRMED', settledAt: { not: null } },
-    _sum: { amount: true },
+    _sum: { amount: true, couponDiscount: true },
     _count: true,
   });
 
   return NextResponse.json({
     sellers: sellers.sort((a, b) => b.totalAmount - a.totalAmount),
-    settledTotal: settledAgg._sum.amount || 0,
+    settledTotal: (settledAgg._sum.amount || 0) + (settledAgg._sum.couponDiscount || 0),
     settledCount: settledAgg._count,
   });
 }

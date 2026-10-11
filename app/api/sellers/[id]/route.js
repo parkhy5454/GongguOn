@@ -9,7 +9,7 @@ export async function GET(req, { params: paramsPromise }) {
 
   const seller = await prisma.user.findUnique({
     where: { id: params.id },
-    select: { id: true, name: true, createdAt: true },
+    select: { id: true, name: true, createdAt: true, sellerVerified: true },
   });
   if (!seller) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
@@ -20,13 +20,13 @@ export async function GET(req, { params: paramsPromise }) {
   });
 
   const ratingAgg = await prisma.review.aggregate({
-    where: { targetId: params.id },
+    where: { targetId: params.id, hidden: false },
     _avg: { rating: true },
     _count: { rating: true },
   });
 
   const reviews = await prisma.review.findMany({
-    where: { targetId: params.id },
+    where: { targetId: params.id, hidden: false },
     include: { reviewer: { select: { id: true, name: true } } },
     orderBy: { createdAt: 'desc' },
     take: 20,

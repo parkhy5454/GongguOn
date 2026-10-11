@@ -9,8 +9,11 @@ export async function GET(req, { params: paramsPromise }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
+  const blocks = await prisma.block.findMany({ where: { blockerId: user.id }, select: { blockedId: true } });
+  const blockedIds = blocks.map((b) => b.blockedId);
+
   const messages = await prisma.eventMessage.findMany({
-    where: { eventId: params.id },
+    where: { eventId: params.id, ...(blockedIds.length ? { authorId: { notIn: blockedIds } } : {}) },
     orderBy: { createdAt: 'asc' },
     include: { author: { select: { id: true, name: true } } },
     take: 200,

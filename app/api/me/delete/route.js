@@ -7,11 +7,13 @@ export async function POST(req) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  const { password } = await req.json();
-  if (!password) {
-    return NextResponse.json({ error: '본인 확인을 위해 비밀번호를 입력해주세요.' }, { status: 400 });
+  const { password, confirmText } = await req.json();
+  // 카카오로 가입한 회원은 비밀번호를 모를 수 있으므로 "탈퇴합니다"를 직접 입력하는 것으로 본인 확인을 대신함
+  const kakaoConfirm = !!user.kakaoId && confirmText === '탈퇴합니다';
+  if (!password && !kakaoConfirm) {
+    return NextResponse.json({ error: user.kakaoId ? '"탈퇴합니다"를 입력하거나 비밀번호를 입력해주세요.' : '본인 확인을 위해 비밀번호를 입력해주세요.' }, { status: 400 });
   }
-  const ok = await verifyPassword(password, user.passwordHash);
+  const ok = kakaoConfirm || (await verifyPassword(password, user.passwordHash));
   if (!ok) {
     return NextResponse.json({ error: '비밀번호가 올바르지 않습니다.' }, { status: 400 });
   }
@@ -40,8 +42,14 @@ export async function POST(req) {
       passwordHash: 'DELETED',
       deletedAt: new Date(),
       tokenVersion: { increment: 1 },
+      kakaoId: null,
+      totpSecret: null,
+      totpEnabled: false,
     },
   });
+  // 푸시 알림 구독·차단 목록 등 개인 설정 정리
+  await prisma.pushSubscription.deleteMany({ where: { userId: user.id } });
+  await prisma.block.deleteMany({ where: { OR: [{ blockerId: user.id }, { blockedId: user.id }] } });
 
   const res = NextResponse.json({ ok: true });
   res.cookies.set(COOKIE_NAME, '', { path: '/', maxAge: 0 });

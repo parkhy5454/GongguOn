@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
-import { cancelTossPayment } from '@/lib/toss';
-import { finalizeOrderRefunded } from '@/lib/paymentReconcile';
+import { finalizeOrderRefunded, cancelPaymentAtToss } from '@/lib/paymentReconcile';
 
 export async function POST(req, { params: paramsPromise }) {
   const params = await paramsPromise;
@@ -21,12 +20,10 @@ export async function POST(req, { params: paramsPromise }) {
   const { reason } = await req.json().catch(() => ({}));
   const cancelReason = reason?.trim() || '판매자 요청에 의한 환불';
 
-  // 카드 결제는 토스에 실제 결제 취소를 요청, 계좌이체는 장부상으로만 환불 처리
-  if (order.paymentMethod === 'CARD' && order.tossPaymentKey) {
-    const { error } = await cancelTossPayment({ paymentKey: order.tossPaymentKey, cancelReason });
-    if (error) {
-      return NextResponse.json({ error }, { status: 400 });
-    }
+  // 카드/가상계좌는 토스에 실제 결제 취소를 요청 (가상계좌는 미리 받아둔 환불 계좌로 입금됨), 계좌이체는 장부상으로만 환불 처리
+  const { error } = await cancelPaymentAtToss(order, cancelReason);
+  if (error) {
+    return NextResponse.json({ error }, { status: 400 });
   }
 
   await finalizeOrderRefunded(params.id, cancelReason);

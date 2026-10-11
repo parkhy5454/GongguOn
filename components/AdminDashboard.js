@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { AdminPromo, AdminReviews, toggleVerified } from '@/components/AdminGrowth';
 
 const TABS = [
   { key: 'users', label: '회원' },
@@ -9,6 +10,8 @@ const TABS = [
   { key: 'settlements', label: '정산' },
   { key: 'reports', label: '신고 내역' },
   { key: 'feedback', label: '문의사항' },
+  { key: 'promo', label: '공지/쿠폰' },
+  { key: 'reviews', label: '후기 관리' },
 ];
 
 const CATEGORY_LABEL = { BUG: '🐛 버그 신고', SUGGESTION: '💡 기능 제안', OTHER: '💬 기타 문의' };
@@ -88,7 +91,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -120,6 +123,7 @@ export default function AdminDashboard() {
                 <th style={{ padding: '6px 8px' }}>포인트</th>
                 <th style={{ padding: '6px 8px' }}>개설공구</th>
                 <th style={{ padding: '6px 8px' }}>참여주문</th>
+                <th style={{ padding: '6px 8px' }}>인증 판매자</th>
               </tr>
             </thead>
             <tbody>
@@ -135,6 +139,12 @@ export default function AdminDashboard() {
                   <td style={{ padding: '6px 8px' }}>{u.pointBalance.toLocaleString()}P</td>
                   <td style={{ padding: '6px 8px' }}>{u._count.hostedEvents}</td>
                   <td style={{ padding: '6px 8px' }}>{u._count.orders}</td>
+                  <td style={{ padding: '6px 8px' }}>
+                    <button
+                      className={`mini-btn`}
+                      onClick={async () => { if (await toggleVerified(u.id, !u.sellerVerified)) loadUsers(userPage); }}
+                    >{u.sellerVerified ? '✅ 해제' : '인증하기'}</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -255,6 +265,8 @@ export default function AdminDashboard() {
           ))}
         </div>
       )}
+      {!loading && tab === 'promo' && <AdminPromo />}
+      {!loading && tab === 'reviews' && <AdminReviews />}
     </>
   );
 }

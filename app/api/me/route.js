@@ -8,7 +8,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ user: null }, { status: 401 });
 
   const agg = await prisma.review.aggregate({
-    where: { targetId: user.id },
+    where: { targetId: user.id, hidden: false },
     _avg: { rating: true },
     _count: { rating: true },
   });
@@ -24,6 +24,9 @@ export async function GET() {
       isAdmin: isAdminEmail(user.email),
       mutedNotificationTypes: user.mutedNotificationTypes,
       emailVerified: !!user.emailVerifiedAt,
+      hasKakao: !!user.kakaoId,
+      createdAt: user.createdAt,
+      sellerVerified: user.sellerVerified,
     },
   });
 }

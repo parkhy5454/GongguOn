@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CATEGORIES } from '@/lib/categories';
+import Onboarding from '@/components/Onboarding';
 
 const STATUS_LABEL = { OPEN: '진행중', CLOSED: '마감', CANCELLED: '취소됨', COMPLETED: '완료' };
 const STATUS_CLASS = { OPEN: 'badge-open', CLOSED: 'badge-closed', CANCELLED: 'badge-cancelled', COMPLETED: 'badge-completed' };
@@ -101,6 +102,8 @@ export default function EventsPage() {
         </div>
       </div>
 
+      <Onboarding />
+
       <div className="events-filter-row" style={{ display: 'flex', gap: 8, marginBottom: 16, position: 'relative' }}>
         <input
           value={q}
@@ -167,7 +170,16 @@ export default function EventsPage() {
 
       {loading && <div className="empty-state">불러오는 중…</div>}
       {!loading && events.length === 0 && (
-        <div className="empty-state">아직 열린 공구가 없어요. 첫 공구를 열어보세요!</div>
+        <div className="empty-state">
+          {q.trim() || category !== 'ALL' ? (
+            <>조건에 맞는 공구가 없어요. 검색어나 카테고리를 바꿔보세요.</>
+          ) : (
+            <>
+              아직 열린 공구가 없어요. 첫 공구를 열어보세요!
+              <div style={{ marginTop: 10 }}><Link href="/events/new" className="btn btn-primary btn-sm">+ 공구 등록하기</Link></div>
+            </>
+          )}
+        </div>
       )}
 
       <div className="grid-cards">
@@ -195,7 +207,7 @@ export default function EventsPage() {
               <div className="progress-bar"><div className="progress-fill" style={{ width: `${pct}%` }} /></div>
               <div className="meta-row">
                 <span>
-                  {ev.host.name}
+                  {ev.host.name}{ev.host.sellerVerified ? ' ✅' : ''}
                   {ev.hostRating?.avg ? ` · ⭐ ${ev.hostRating.avg.toFixed(1)} (${ev.hostRating.count})` : ' · 신규 판매자'}
                 </span>
                 <span>{formatDeadline(ev.deadline)}</span>

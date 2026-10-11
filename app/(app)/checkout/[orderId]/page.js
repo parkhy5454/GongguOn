@@ -30,7 +30,8 @@ export default function CheckoutPage() {
     const origin = window.location.origin;
 
     tossPayments
-      .requestPayment('카드', {
+      .requestPayment(order.paymentMethod === 'VIRTUAL_ACCOUNT' ? '가상계좌' : '카드', {
+        ...(order.paymentMethod === 'VIRTUAL_ACCOUNT' ? { validHours: 72, cashReceipt: { type: '미발행' } } : {}),
         amount: order.amount,
         orderId: order.id,
         orderName: order.orderName || '공구온 결제',

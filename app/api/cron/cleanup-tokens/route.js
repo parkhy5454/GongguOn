@@ -19,7 +19,17 @@ export async function GET(req) {
     prisma.rateLimitBucket.deleteMany({ where: { windowStart: { lt: oldBucketCutoff } } }),
   ]);
 
+  // 환불 계좌 정보는 목적을 다하면 파기: 환불이 끝났거나, 공구가 정상 종료/취소된 주문
+  const accountsPurged = await prisma.order.updateMany({
+    where: {
+      refundAccountEnc: { not: null },
+      OR: [{ paymentStatus: 'REFUNDED' }, { event: { status: { in: ['COMPLETED', 'CANCELLED'] } } }],
+    },
+    data: { refundAccountEnc: null },
+  });
+
   return NextResponse.json({
+    refundAccountsPurged: accountsPurged.count,
     passwordResetTokensDeleted: resetDeleted.count,
     emailVerificationTokensDeleted: verifyDeleted.count,
     rateLimitBucketsDeleted: bucketDeleted.count,

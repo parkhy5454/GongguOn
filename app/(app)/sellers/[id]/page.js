@@ -11,7 +11,7 @@ export async function generateMetadata({ params: paramsPromise }) {
     if (!seller) return { title: '공구온' };
 
     const ratingAgg = await prisma.review.aggregate({
-      where: { targetId: params.id },
+      where: { targetId: params.id, hidden: false },
       _avg: { rating: true },
       _count: { rating: true },
     });

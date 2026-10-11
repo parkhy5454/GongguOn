@@ -15,6 +15,14 @@ export async function PATCH(req, { params: paramsPromise }) {
     return NextResponse.json({ error: '공구 개설자만 입금을 확인할 수 있어요.' }, { status: 403 });
   }
 
+  // 카드·가상계좌는 토스 결제 결과로만 확정돼요 (판매자가 임의로 확정할 수 없음)
+  if (order.paymentMethod !== 'BANK_TRANSFER') {
+    return NextResponse.json({ error: '카드·가상계좌 결제는 자동으로 확인돼요.' }, { status: 400 });
+  }
+  if (order.paymentStatus !== 'PAID') {
+    return NextResponse.json({ error: '구매자가 입금완료를 표시한 주문만 확인할 수 있어요.' }, { status: 400 });
+  }
+
   const updated = await prisma.order.update({
     where: { id: params.id },
     data: { paymentStatus: 'CONFIRMED' },

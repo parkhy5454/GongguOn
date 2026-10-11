@@ -27,6 +27,10 @@ export async function GET(req) {
   if (q) where.title = { contains: q, mode: 'insensitive' };
   if (category && category !== 'ALL') where.category = category;
 
+  // 내가 차단한 판매자의 공구는 목록에서 숨김
+  const blocks = await prisma.block.findMany({ where: { blockerId: user.id }, select: { blockedId: true } });
+  if (blocks.length) where.hostId = { notIn: blocks.map((b) => b.blockedId) };
+
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
   const pageSize = 24;
 
@@ -37,7 +41,7 @@ export async function GET(req) {
       skip: (page - 1) * pageSize,
       take: pageSize,
       include: {
-        host: { select: { id: true, name: true } },
+        host: { select: { id: true, name: true, sellerVerified: true } },
         options: true,
         discountTiers: true,
         _count: { select: { orders: true } },
@@ -50,7 +54,7 @@ export async function GET(req) {
   const hostIds = [...new Set(events.map((e) => e.hostId))];
   const ratings = await prisma.review.groupBy({
     by: ['targetId'],
-    where: { targetId: { in: hostIds } },
+    where: { targetId: { in: hostIds }, hidden: false },
     _avg: { rating: true },
     _count: { rating: true },
   });

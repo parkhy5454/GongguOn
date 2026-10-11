@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getCurrentUser } from '@/lib/authServer';
 import { prisma } from '@/lib/prisma';
@@ -6,19 +5,31 @@ import { isAdminEmail } from '@/lib/admin';
 import TopNav from '@/components/TopNav';
 import BottomTabBar from '@/components/BottomTabBar';
 import EmailVerifyBanner from '@/components/EmailVerifyBanner';
+import RedirectToLogin from '@/components/RedirectToLogin';
+import AnnouncementBanner from '@/components/AnnouncementBanner';
 
 export default async function AppLayout({ children }) {
   const user = await getCurrentUser();
-  if (!user) redirect('/login');
+  if (!user) return <RedirectToLogin />;
 
   const agg = await prisma.review.aggregate({
-    where: { targetId: user.id },
+    where: { targetId: user.id, hidden: false },
     _avg: { rating: true },
   });
+
+  let announcements = [];
+  try {
+    const rows = await prisma.announcement.findMany({
+      where: { active: true }, orderBy: { createdAt: 'desc' }, take: 3,
+      select: { id: true, title: true, body: true },
+    });
+    announcements = rows;
+  } catch {}
 
   return (
     <>
       <TopNav user={{ id: user.id, name: user.name, email: user.email, rating: agg._avg.rating, referralCode: user.referralCode, pointBalance: user.pointBalance, isAdmin: isAdminEmail(user.email) }} />
+      <AnnouncementBanner items={announcements} />
       {!user.emailVerifiedAt && <EmailVerifyBanner />}
       {!user.phone && (
         <div style={{

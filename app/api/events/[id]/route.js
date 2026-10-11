@@ -3,6 +3,12 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/authServer';
 import { applicableDiscount } from '@/lib/pricing';
 
+function stripSecrets(o) {
+  if (!o) return o;
+  const { refundAccountEnc, vaSecret, ...rest } = o;
+  return rest;
+}
+
 export async function GET(req, { params: paramsPromise }) {
   const params = await paramsPromise;
   const user = await getCurrentUser();
@@ -11,10 +17,11 @@ export async function GET(req, { params: paramsPromise }) {
   const event = await prisma.event.findUnique({
     where: { id: params.id },
     include: {
-      host: { select: { id: true, name: true, email: true } },
+      host: { select: { id: true, name: true, email: true, sellerVerified: true } },
       options: true,
       discountTiers: { orderBy: { minParticipants: 'asc' } },
       reviews: {
+        where: { hidden: false },
         include: { reviewer: { select: { id: true, name: true } } },
         orderBy: { createdAt: 'desc' },
       },
@@ -26,7 +33,7 @@ export async function GET(req, { params: paramsPromise }) {
   const isHost = event.hostId === user.id;
 
   const ratingAgg = await prisma.review.aggregate({
-    where: { targetId: event.hostId },
+    where: { targetId: event.hostId, hidden: false },
     _avg: { rating: true },
     _count: { rating: true },
   });
@@ -60,8 +67,9 @@ export async function GET(req, { params: paramsPromise }) {
     event,
     hostRating: { avg: ratingAgg._avg.rating, count: ratingAgg._count.rating },
     isHost,
-    myOrder,
-    orders,
+    meId: user.id,
+    myOrder: stripSecrets(myOrder),
+    orders: orders.map(stripSecrets),
     totalParticipants: isHost ? currentParticipants : undefined,
     currentParticipants,
     currentDiscount,

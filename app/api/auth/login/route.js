@@ -52,7 +52,7 @@ export async function POST(req) {
     if (!payload || payload.purpose !== 'login2fa') {
       return NextResponse.json({ error: '인증 시간이 지났어요. 처음부터 다시 로그인해주세요.', restart: true }, { status: 401 });
     }
-    const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+    const user = await prisma.user.findUnique({ where: { id: payload.uid } });
     if (!user || user.deletedAt || !user.totpEnabled) {
       return NextResponse.json({ error: '처음부터 다시 로그인해주세요.', restart: true }, { status: 401 });
     }
@@ -103,7 +103,7 @@ export async function POST(req) {
 
   // 2단계 인증이 켜진 계정: 비밀번호가 맞으면 5분짜리 티켓을 주고, 인증 앱 코드를 요구함
   if (user.totpEnabled) {
-    const newTicket = signShortToken({ sub: user.id, purpose: 'login2fa' }, '5m');
+    const newTicket = signShortToken({ uid: user.id, purpose: 'login2fa' }, '5m');
     return NextResponse.json(
       { needTotp: true, ticket: newTicket, error: '인증 앱의 6자리 코드를 입력해주세요.' },
       { status: 401 }

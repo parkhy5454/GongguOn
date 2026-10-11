@@ -25,6 +25,9 @@ export async function GET(req, { params: paramsPromise }) {
       orderName: `${order.event.title} · ${order.option.name}`,
       buyerName: order.buyer.name,
       eventId: order.event.id,
+      vaBank: order.vaBank,
+      vaNumber: order.vaNumber,
+      vaDue: order.vaDue,
     },
   });
 }

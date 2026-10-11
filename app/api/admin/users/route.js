@@ -22,7 +22,7 @@ export async function GET(req) {
       take: pageSize,
       select: {
         id: true, email: true, name: true, phone: true, createdAt: true,
-        referralCode: true, referredById: true, pointBalance: true, deletedAt: true,
+        referralCode: true, referredById: true, pointBalance: true, deletedAt: true, sellerVerified: true,
         _count: { select: { hostedEvents: true, orders: true } },
       },
     }),

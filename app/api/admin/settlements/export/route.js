@@ -26,7 +26,7 @@ export async function GET() {
     orderBy: { createdAt: 'desc' },
   });
 
-  const header = ['판매자', '판매자이메일', '공구명', '옵션', '수량', '결제금액', '결제수단', '정산상태', '정산일시', '참여일시'];
+  const header = ['판매자', '판매자이메일', '공구명', '옵션', '수량', '결제금액', '쿠폰할인(공구온 부담)', '정산대상금액', '결제수단', '정산상태', '정산일시', '참여일시'];
   const rows = orders.map((o) => [
     o.event.host.name,
     o.event.host.email,
@@ -34,7 +34,9 @@ export async function GET() {
     o.option.name,
     o.quantity,
     o.amount,
-    o.paymentMethod === 'CARD' ? '카드결제' : '계좌이체',
+    o.couponDiscount || 0,
+    o.amount + (o.couponDiscount || 0),
+    o.paymentMethod === 'CARD' ? '카드결제' : o.paymentMethod === 'VIRTUAL_ACCOUNT' ? '가상계좌' : '계좌이체',
     o.settledAt ? '정산완료' : '미정산',
     o.settledAt ? new Date(o.settledAt).toLocaleString('ko-KR') : '',
     new Date(o.createdAt).toLocaleString('ko-KR'),

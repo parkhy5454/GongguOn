@@ -9,47 +9,53 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  name         String
-  phone        String?  @unique
-  defaultAddress String?
-  agreedAt     DateTime?
-  emailVerifiedAt DateTime?
-  failedLoginAttempts Int @default(0)
-  lockedUntil  DateTime?
-  deletedAt    DateTime?
-  tokenVersion Int      @default(0)
-  totpSecret   String?
-  totpEnabled  Boolean  @default(false)
-  totpLastStep Int?
-  passwordHash String
-  createdAt    DateTime @default(now())
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  name                String
+  phone               String?   @unique
+  defaultAddress      String?
+  agreedAt            DateTime?
+  emailVerifiedAt     DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  deletedAt           DateTime?
+  tokenVersion        Int       @default(0)
+  totpSecret          String?
+  totpEnabled         Boolean   @default(false)
+  totpLastStep        Int?
+  kakaoId             String?   @unique
+  sellerVerified      Boolean   @default(false)
+  passwordHash        String
+  createdAt           DateTime  @default(now())
 
-  referralCode String   @unique
+  referralCode String  @unique
   referredById String?
-  referredBy   User?    @relation("Referral", fields: [referredById], references: [id])
-  referrals    User[]   @relation("Referral")
+  referredBy   User?   @relation("Referral", fields: [referredById], references: [id])
+  referrals    User[]  @relation("Referral")
 
-  pointBalance Int      @default(0)
+  pointBalance             Int     @default(0)
   firstPurchaseRewardGiven Boolean @default(false)
   firstEventRewardGiven    Boolean @default(false)
 
-  hostedEvents Event[]   @relation("Host")
-  orders       Order[]
-  messages     EventMessage[]
-  reviewsGiven    Review[] @relation("Reviewer")
-  reviewsReceived Review[] @relation("Target")
-  reports         Report[]
-  notifications   Notification[]
-  passwordResetTokens PasswordResetToken[]
-  feedbacks       Feedback[]
-  favorites       Favorite[]
-  following       Follow[] @relation("Follower")
-  followers       Follow[] @relation("Followee")
-  mutedNotificationTypes String[] @default([])
+  hostedEvents            Event[]                  @relation("Host")
+  orders                  Order[]
+  messages                EventMessage[]
+  reviewsGiven            Review[]                 @relation("Reviewer")
+  reviewsReceived         Review[]                 @relation("Target")
+  reports                 Report[]
+  notifications           Notification[]
+  passwordResetTokens     PasswordResetToken[]
+  feedbacks               Feedback[]
+  favorites               Favorite[]
+  following               Follow[]                 @relation("Follower")
+  followers               Follow[]                 @relation("Followee")
+  mutedNotificationTypes  String[]                 @default([])
   emailVerificationTokens EmailVerificationToken[]
-  chatReads       ChatRead[]
+  chatReads               ChatRead[]
+  pushSubscriptions       PushSubscription[]
+  blocksMade              Block[]                  @relation("Blocker")
+  blocksReceived          Block[]                  @relation("Blocked")
+  couponRedemptions       CouponRedemption[]
 }
 
 enum EventStatus {
@@ -66,30 +72,30 @@ enum DeliveryStatus {
 }
 
 model Event {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  images      String[] @default([])
-  category    String   @default("기타")
-  minQuantity Int      @default(1)
-  deadline    DateTime
-  status      EventStatus    @default(OPEN)
-  deliveryStatus DeliveryStatus @default(PREPARING)
-  aiAutoReply Boolean  @default(false)
-  deadlineReminderSent Boolean @default(false)
-  createdAt   DateTime @default(now())
+  id                   String         @id @default(cuid())
+  title                String
+  description          String?
+  images               String[]       @default([])
+  category             String         @default("기타")
+  minQuantity          Int            @default(1)
+  deadline             DateTime
+  status               EventStatus    @default(OPEN)
+  deliveryStatus       DeliveryStatus @default(PREPARING)
+  aiAutoReply          Boolean        @default(false)
+  deadlineReminderSent Boolean        @default(false)
+  createdAt            DateTime       @default(now())
 
-  hostId      String
-  host        User     @relation("Host", fields: [hostId], references: [id])
+  hostId String
+  host   User   @relation("Host", fields: [hostId], references: [id])
 
-  options     EventOption[]
-  orders      Order[]
-  messages    EventMessage[]
-  reviews     Review[]
+  options       EventOption[]
+  orders        Order[]
+  messages      EventMessage[]
+  reviews       Review[]
   discountTiers DiscountTier[]
-  reports     Report[]
-  favorites   Favorite[]
-  chatReads   ChatRead[]
+  reports       Report[]
+  favorites     Favorite[]
+  chatReads     ChatRead[]
 }
 
 model DiscountTier {
@@ -101,14 +107,14 @@ model DiscountTier {
 }
 
 model Report {
-  id        String   @id @default(cuid())
-  eventId   String
-  event     Event    @relation(fields: [eventId], references: [id])
+  id         String   @id @default(cuid())
+  eventId    String
+  event      Event    @relation(fields: [eventId], references: [id])
   reporterId String
-  reporter  User     @relation(fields: [reporterId], references: [id])
-  reason    String
-  detail    String?
-  createdAt DateTime @default(now())
+  reporter   User     @relation(fields: [reporterId], references: [id])
+  reason     String
+  detail     String?
+  createdAt  DateTime @default(now())
 }
 
 model Notification {
@@ -133,7 +139,7 @@ model EventOption {
   soldCount Int     @default(0)
   imageUrl  String?
 
-  orders    Order[]
+  orders Order[]
 }
 
 enum PaymentStatus {
@@ -144,28 +150,36 @@ enum PaymentStatus {
 }
 
 model Order {
-  id             String        @id @default(cuid())
-  eventId        String
-  event          Event         @relation(fields: [eventId], references: [id])
-  optionId       String
-  option         EventOption   @relation(fields: [optionId], references: [id])
-  buyerId        String
-  buyer          User          @relation(fields: [buyerId], references: [id])
-  quantity       Int
-  amount         Int
-  discountPercent Int          @default(0)
-  pointsUsed     Int           @default(0)
-  shippingAddress String?
-  depositorName  String?
-  paymentMethod  String        @default("BANK_TRANSFER")
-  tossPaymentKey String?
-  trackingCompany String?
-  trackingNumber String?
-  paymentStatus  PaymentStatus @default(PENDING)
-  settledAt      DateTime?
-  refundedAt     DateTime?
-  refundReason   String?
-  createdAt      DateTime      @default(now())
+  id               String            @id @default(cuid())
+  eventId          String
+  event            Event             @relation(fields: [eventId], references: [id])
+  optionId         String
+  option           EventOption       @relation(fields: [optionId], references: [id])
+  buyerId          String
+  buyer            User              @relation(fields: [buyerId], references: [id])
+  quantity         Int
+  amount           Int
+  discountPercent  Int               @default(0)
+  pointsUsed       Int               @default(0)
+  shippingAddress  String?
+  depositorName    String?
+  paymentMethod    String            @default("BANK_TRANSFER")
+  tossPaymentKey   String?
+  trackingCompany  String?
+  trackingNumber   String?
+  paymentStatus    PaymentStatus     @default(PENDING)
+  couponCode       String?
+  couponDiscount   Int               @default(0)
+  vaBank           String?
+  vaNumber         String?
+  vaDue            DateTime?
+  vaSecret         String?
+  refundAccountEnc String?
+  couponRedemption CouponRedemption?
+  settledAt        DateTime?
+  refundedAt       DateTime?
+  refundReason     String?
+  createdAt        DateTime          @default(now())
 }
 
 model EventMessage {
@@ -180,17 +194,18 @@ model EventMessage {
 }
 
 model Review {
-  id        String   @id @default(cuid())
-  eventId   String
-  event     Event    @relation(fields: [eventId], references: [id])
+  id         String   @id @default(cuid())
+  eventId    String
+  event      Event    @relation(fields: [eventId], references: [id])
   reviewerId String
-  reviewer  User     @relation("Reviewer", fields: [reviewerId], references: [id])
-  targetId  String
-  target    User     @relation("Target", fields: [targetId], references: [id])
-  rating    Int
-  comment   String?
-  imageUrl  String?
-  createdAt DateTime @default(now())
+  reviewer   User     @relation("Reviewer", fields: [reviewerId], references: [id])
+  targetId   String
+  target     User     @relation("Target", fields: [targetId], references: [id])
+  rating     Int
+  comment    String?
+  imageUrl   String?
+  hidden     Boolean  @default(false)
+  createdAt  DateTime @default(now())
 
   @@unique([eventId, reviewerId])
 }
@@ -212,12 +227,12 @@ enum FeedbackCategory {
 }
 
 model Feedback {
-  id        String            @id @default(cuid())
+  id        String           @id @default(cuid())
   userId    String
-  user      User              @relation(fields: [userId], references: [id])
+  user      User             @relation(fields: [userId], references: [id])
   category  FeedbackCategory
   content   String
-  createdAt DateTime          @default(now())
+  createdAt DateTime         @default(now())
 }
 
 model Favorite {
@@ -232,12 +247,12 @@ model Favorite {
 }
 
 model Follow {
-  id          String   @id @default(cuid())
-  followerId  String
-  follower    User     @relation("Follower", fields: [followerId], references: [id])
-  sellerId    String
-  seller      User     @relation("Followee", fields: [sellerId], references: [id])
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  followerId String
+  follower   User     @relation("Follower", fields: [followerId], references: [id])
+  sellerId   String
+  seller     User     @relation("Followee", fields: [sellerId], references: [id])
+  createdAt  DateTime @default(now())
 
   @@unique([followerId, sellerId])
 }
@@ -267,18 +282,78 @@ model AdminActionLog {
 }
 
 model RateLimitBucket {
-  key        String   @id
-  count      Int      @default(1)
+  key         String   @id
+  count       Int      @default(1)
   windowStart DateTime @default(now())
 }
 
 model ChatRead {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  eventId   String
-  event     Event    @relation(fields: [eventId], references: [id])
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  eventId    String
+  event      Event    @relation(fields: [eventId], references: [id])
   lastReadAt DateTime @default(now())
 
   @@unique([userId, eventId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id])
+  blockedId String
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Coupon {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  description    String?
+  type           String    @default("PERCENT")
+  value          Int
+  maxDiscount    Int?
+  minOrderAmount Int       @default(0)
+  maxUses        Int?
+  usedCount      Int       @default(0)
+  expiresAt      DateTime?
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+
+  redemptions CouponRedemption[]
+}
+
+model CouponRedemption {
+  id        String   @id @default(cuid())
+  couponId  String
+  coupon    Coupon   @relation(fields: [couponId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  orderId   String   @unique
+  order     Order    @relation(fields: [orderId], references: [id])
+  discount  Int
+  createdAt DateTime @default(now())
+
+  @@unique([couponId, userId])
 }

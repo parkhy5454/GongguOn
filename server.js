@@ -46,7 +46,7 @@ app.prepare().then(() => {
     const cookieHeader = socket.handshake.headers.cookie;
     const token = getTokenFromCookieHeader(cookieHeader);
     const payload = token ? verifyToken(token) : null;
-    if (!payload) return next2(new Error('unauthorized'));
+    if (!payload || !payload.sub || payload.purpose) return next2(new Error('unauthorized'));
     socket.user = payload;
     next2();
   });
