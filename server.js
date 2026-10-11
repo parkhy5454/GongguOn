@@ -2,7 +2,7 @@ const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
 const { Server } = require('socket.io');
-const { verifyToken, getTokenFromCookieHeader, DEFAULT_SECRET } = require('./src/lib/auth');
+const { verifyToken, getTokenFromCookieHeader, DEFAULT_SECRET } = require('./lib/auth');
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = '0.0.0.0';
