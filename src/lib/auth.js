@@ -1,1 +1,0 @@
-export function signToken(a){return 't'} export function verifyToken(a){return {}}

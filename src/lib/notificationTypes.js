@@ -1,1 +1,0 @@
-export const notificationTypes=[]; export default notificationTypes;

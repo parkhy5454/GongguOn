@@ -1,1 +1,0 @@
-export const categories=[{id:'food',name:'음식'},{id:'life',name:'생활'}]; export const CATEGORIES=categories; export default categories;
